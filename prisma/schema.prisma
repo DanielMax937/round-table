@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RoundTable {
+  id         String   @id @default(cuid())
+  topic      String
+  agentCount Int
+  status     String   @default("active") // "active" | "paused" | "archived"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  agents Agent[]
+  rounds Round[]
+}
+
+model Agent {
+  id           String @id @default(cuid())
+  roundTableId String
+  name         String
+  persona      String // System prompt defining role/perspective
+  order        Int    // Turn order (1, 2, 3...)
+
+  roundTable RoundTable @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  messages   Message[]
+
+  @@index([roundTableId])
+}
+
+model Round {
+  id           String    @id @default(cuid())
+  roundTableId String
+  roundNumber  Int
+  status       String    @default("in_progress") // "in_progress" | "completed"
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  roundTable RoundTable @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  messages   Message[]
+
+  @@index([roundTableId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  roundId   String
+  agentId   String
+  content   String   // The agent's response
+  toolCalls String?  // JSON array of web searches performed
+  createdAt DateTime @default(now())
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([agentId])
+}
