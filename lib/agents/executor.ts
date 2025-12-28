@@ -105,7 +105,10 @@ export async function executeAgentTurn(
   onChunk?: (chunk: string) => void,
   onToolCall?: (toolCall: ToolCall) => void
 ): Promise<{ content: string; toolCalls: ToolCall[] }> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({
+    apiKey,
+    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+  });
 
   const messages = formatMessagesForClaude(context, agent.id);
 
