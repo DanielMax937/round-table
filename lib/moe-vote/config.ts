@@ -27,40 +27,50 @@ export const MOE_VOTE_CONFIG = {
 /**
  * Validate MoE vote request parameters
  */
-export function validateMoeVoteRequest(body: any): {
+export function validateMoeVoteRequest(body: unknown): {
   valid: boolean;
-  error?: string;
+  errors?: string[];
 } {
-  if (!body.question || typeof body.question !== 'string') {
-    return { valid: false, error: 'Question must be a string' };
+  const errors: string[] = [];
+
+  // Type guard for object
+  if (typeof body !== 'object' || body === null) {
+    return { valid: false, errors: ['Request body must be an object'] };
   }
 
-  if (body.question.length < MOE_VOTE_CONFIG.questionMinLength) {
-    return {
-      valid: false,
-      error: `Question must be at least ${MOE_VOTE_CONFIG.questionMinLength} characters`,
-    };
+  const req = body as Record<string, unknown>;
+
+  // Validate question
+  if (!req.question || typeof req.question !== 'string') {
+    errors.push('Question must be a string');
+  } else if (req.question.length < MOE_VOTE_CONFIG.questionMinLength) {
+    errors.push(`Question must be at least ${MOE_VOTE_CONFIG.questionMinLength} characters`);
+  } else if (req.question.length > MOE_VOTE_CONFIG.questionMaxLength) {
+    errors.push(`Question must be less than ${MOE_VOTE_CONFIG.questionMaxLength} characters`);
   }
 
-  if (body.question.length > MOE_VOTE_CONFIG.questionMaxLength) {
-    return {
-      valid: false,
-      error: `Question must be less than ${MOE_VOTE_CONFIG.questionMaxLength} characters`,
-    };
-  }
-
-  if (body.agentCount !== undefined) {
+  // Validate agentCount (optional)
+  if (req.agentCount !== undefined) {
     if (
-      typeof body.agentCount !== 'number' ||
-      body.agentCount < MOE_VOTE_CONFIG.agentCountMin ||
-      body.agentCount > MOE_VOTE_CONFIG.agentCountMax
+      typeof req.agentCount !== 'number' ||
+      !Number.isInteger(req.agentCount) ||
+      Number.isNaN(req.agentCount) ||
+      req.agentCount < MOE_VOTE_CONFIG.agentCountMin ||
+      req.agentCount > MOE_VOTE_CONFIG.agentCountMax
     ) {
-      return {
-        valid: false,
-        error: `Agent count must be between ${MOE_VOTE_CONFIG.agentCountMin}-${MOE_VOTE_CONFIG.agentCountMax}`,
-      };
+      errors.push(`Agent count must be an integer between ${MOE_VOTE_CONFIG.agentCountMin}-${MOE_VOTE_CONFIG.agentCountMax}`);
     }
   }
 
-  return { valid: true };
+  // Validate includeDiscussionAgentsInVoting (optional)
+  if (req.includeDiscussionAgentsInVoting !== undefined) {
+    if (typeof req.includeDiscussionAgentsInVoting !== 'boolean') {
+      errors.push('includeDiscussionAgentsInVoting must be a boolean');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors: errors.length > 0 ? errors : undefined,
+  };
 }
