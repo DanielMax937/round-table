@@ -53,6 +53,40 @@ export async function* synthesizeBlogPost(
   input: SynthesisInput,
   apiKey: string
 ): AsyncGenerator<SynthesisEvent> {
+  // Input validation
+  if (!input.topic || input.topic.trim().length === 0) {
+    yield {
+      type: 'error',
+      data: {
+        error: 'Topic cannot be empty',
+        timestamp: new Date()
+      }
+    };
+    return;
+  }
+
+  if (!input.messages || input.messages.length === 0) {
+    yield {
+      type: 'error',
+      data: {
+        error: 'Messages array cannot be empty',
+        timestamp: new Date()
+      }
+    };
+    return;
+  }
+
+  if (!apiKey || apiKey.trim().length === 0) {
+    yield {
+      type: 'error',
+      data: {
+        error: 'API key is required',
+        timestamp: new Date()
+      }
+    };
+    return;
+  }
+
   const anthropic = new Anthropic({
     apiKey,
     baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
