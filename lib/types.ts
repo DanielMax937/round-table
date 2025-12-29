@@ -18,11 +18,28 @@ export interface ToolCall {
   timestamp: Date;
 }
 
-export interface WebSearchResult {
+// Basic result from Serper
+export interface SerperSearchResult {
   title: string;
   url: string;
   snippet: string;
 }
+
+// Enriched result with Jina content
+export interface EnrichedSearchResult {
+  title: string;
+  url: string;
+  snippet: string;  // Original Serper snippet
+  enrichedContent: {
+    markdown: string;      // Full content from Jina
+    fetchedAt: Date;       // When content was fetched
+    source: 'jina' | 'fallback';  // Track if Jina succeeded
+    truncated?: boolean;   // If Jina indicated truncation
+  } | null;  // null if enrichment failed
+}
+
+// Update existing WebSearchResult type
+export interface WebSearchResult extends EnrichedSearchResult {}
 
 // Agent persona interface
 export interface AgentPersona {
