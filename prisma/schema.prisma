@@ -63,3 +63,13 @@ model Message {
   @@index([roundId])
   @@index([agentId])
 }
+
+model SearchCache {
+  id        String   @id @default(cuid())
+  query     String   @unique
+  results   String   // JSON string: Array of EnrichedSearchResult
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])  // For efficient cleanup
+}
