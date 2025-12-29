@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    // Get API key
+    // Get API key from environment
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -66,10 +66,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         };
 
         try {
+          // Stream synthesis events
           for await (const event of synthesizeBlogPost(synthesisInput, apiKey)) {
             sendEvent(event.type, event.data);
           }
 
+          // Send done event
           sendEvent('done', { timestamp: new Date() });
           controller.close();
         } catch (error) {
@@ -83,12 +85,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
+    // Return SSE stream
     return new NextResponse(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
       }
     });
 
