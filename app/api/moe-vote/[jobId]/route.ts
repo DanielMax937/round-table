@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMoeVoteJob, deleteMoeVoteJob } from '@/lib/db/moe-vote-jobs';
-import { MoeVoteJobStatus } from '@/lib/moe-vote/types';
+import { MoeVoteJobStatus, MoeVoteJobPhase, MoeVoteJobResult } from '@/lib/types';
 import { MOE_VOTE_CONFIG } from '@/lib/moe-vote/config';
 
 interface RouteParams {
   params: Promise<{ jobId: string }>;
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+interface GetJobResponse {
+  jobId: string;
+  status: MoeVoteJobStatus;
+  question: string;
+  createdAt: Date;
+  progress?: {
+    currentRound: number;
+    totalRounds: number;
+    phase: MoeVoteJobPhase;
+  };
+  result?: MoeVoteJobResult;
+  error?: string;
+  completedAt?: Date;
+}
+
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { jobId } = await params;
 
   try {
@@ -18,32 +33,44 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build response
-    const response: MoeVoteJobStatus = {
+    const response: GetJobResponse = {
       jobId: job.id,
-      status: job.status as any,
+      status: job.status as MoeVoteJobStatus,
       question: job.question,
       createdAt: job.createdAt,
     };
 
     // Add progress if running
-    if (job.status === 'running' && job.currentRound !== null) {
+    if (job.status === 'running' && job.currentRound !== null && job.currentPhase) {
       response.progress = {
         currentRound: job.currentRound,
         totalRounds: MOE_VOTE_CONFIG.roundCount,
-        phase: job.currentPhase as any,
+        phase: job.currentPhase as MoeVoteJobPhase,
       };
     }
 
     // Add result if completed
     if (job.status === 'completed' && job.result) {
-      response.result = JSON.parse(job.result);
-      response.completedAt = job.completedAt!;
+      try {
+        response.result = JSON.parse(job.result);
+      } catch (parseError) {
+        console.error('Failed to parse job result JSON:', parseError);
+        return NextResponse.json(
+          { error: 'Failed to parse job result', details: 'Stored result is malformed' },
+          { status: 500 }
+        );
+      }
+      if (job.completedAt) {
+        response.completedAt = job.completedAt;
+      }
     }
 
     // Add error if failed
     if (job.status === 'failed' && job.error) {
       response.error = job.error;
-      response.completedAt = job.completedAt!;
+      if (job.completedAt) {
+        response.completedAt = job.completedAt;
+      }
     }
 
     return NextResponse.json(response);
@@ -59,10 +86,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   const { jobId } = await params;
 
   try {
+    // Check if job exists before deleting
+    const job = await getMoeVoteJob(jobId);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
     await deleteMoeVoteJob(jobId);
 
     return NextResponse.json({ success: true });
