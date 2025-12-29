@@ -156,6 +156,7 @@ export interface MoeVoteJobResult {
     averageScore: number;
   };
   scores: Record<string, {
+    agentId: string;
     agentName: string;
     averageScore: number;
     votes: unknown[];

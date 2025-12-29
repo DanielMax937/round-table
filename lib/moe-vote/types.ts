@@ -1,4 +1,4 @@
-import { Agent as AgentModel } from '@prisma/client';
+import { MoeVoteJobStatus as JobStatus, MoeVoteJobPhase, MoeVoteJobResult } from '@/lib/types';
 
 /**
  * Individual vote from a voting agent
@@ -15,6 +15,7 @@ export interface Vote {
  * Aggregated scores for a single discussion agent
  */
 export interface AgentScore {
+  agentId: string;
   agentName: string;
   averageScore: number;
   votes: Vote[];
@@ -29,9 +30,7 @@ export interface VotingResult {
     agentName: string;
     averageScore: number;
   };
-  scores: {
-    [agentId: string]: AgentScore;
-  };
+  scores: Record<string, AgentScore>;
   discussionSummary: {
     roundCount: number;
     totalMessages: number;
@@ -78,19 +77,6 @@ export interface CreateMoeVoteResponse {
 }
 
 /**
- * Job status response for GET /api/moe-vote/[jobId]
+ * Re-export job status types from lib/types.ts for convenience
  */
-export interface MoeVoteJobStatus {
-  jobId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  question: string;
-  createdAt: Date;
-  progress?: {
-    currentRound: number;
-    totalRounds: number;
-    phase: 'discussion' | 'voting' | 'aggregating';
-  };
-  result?: VotingResult;
-  error?: string;
-  completedAt?: Date;
-}
+export type MoeVoteJobStatus = JobStatus;
