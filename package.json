@@ -12,7 +12,8 @@
     "test:api": "tsx scripts/test-api.ts",
     "test:blog": "tsx scripts/test-blog-synthesis.ts",
     "test:websearch-enhanced": "tsx scripts/test-websearch-enhanced.ts",
-    "test:moe-vote": "tsx scripts/test-moe-vote.ts"
+    "test:moe-vote": "tsx scripts/test-moe-vote.ts",
+    "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
