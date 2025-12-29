@@ -260,3 +260,86 @@ Tests use `tsx` for direct TypeScript execution.
 - **Graceful Degradation**: Web search failures don't block discussions
 - **Real-time Experience**: SSE streaming creates engaging live discussions
 - **Simplicity**: Direct API calls instead of Agent SDK reduces complexity
+
+## MoE Voting Router
+
+**NEW FEATURE:** Mixture of Experts voting system for evaluating multi-round discussions.
+
+### Overview
+
+The MoE voting router accepts a question, runs a 10-round discussion with configurable agents, then uses specialized voting agents to evaluate which discussion agent provided the best perspective.
+
+### API Endpoints
+
+**POST `/api/moe-vote`** - Create async voting job
+
+Request:
+```json
+{
+  "question": "Should companies adopt a 4-day work week?",
+  "includeDiscussionAgentsInVoting": false,  // Optional, default: false
+  "agentCount": 3  // Optional, default: 3, range: 2-6
+}
+```
+
+Response:
+```json
+{
+  "jobId": "cm...",
+  "estimatedCompletionTime": 1080000  // milliseconds
+}
+```
+
+**GET `/api/moe-vote/[jobId]`** - Poll job status
+
+Response includes status (pending/running/completed/failed), progress, and results when complete.
+
+**DELETE `/api/moe-vote/[jobId]`** - Delete job and associated data
+
+### Architecture
+
+- **Async job pattern**: Long-running discussions execute in background
+- **Database persistence**: Jobs survive server restarts, queryable history
+- **Progress tracking**: Real-time updates on current round and phase
+- **Weighted voting**: Three specialized evaluators provide multi-dimensional assessment
+
+### Voting Agents
+
+1. **Logic Evaluator** - Assesses reasoning quality and argumentation
+2. **Evidence Evaluator** - Assesses use of sources and data
+3. **Impact Evaluator** - Assesses practical value and applicability
+
+Each voting agent scores discussion agents 1-10 with detailed justifications.
+
+### Implementation Files
+
+- **Database**: `lib/db/moe-vote-jobs.ts` - CRUD operations
+- **Voting**: `lib/agents/voting.ts` - Vote aggregation and execution
+- **Personas**: `lib/agents/voting-personas.ts` - Voting agent definitions
+- **Executor**: `lib/moe-vote/executor.ts` - Background job orchestration
+- **API**: `app/api/moe-vote/` - HTTP endpoints
+- **Types**: `lib/moe-vote/types.ts` - TypeScript interfaces
+- **Config**: `lib/moe-vote/config.ts` - Configuration constants
+
+### Testing
+
+```bash
+npm run test:moe-vote      # Integration test (requires dev server running)
+npm run moe-vote:cleanup   # Cleanup old jobs
+```
+
+### Database Schema
+
+**MoeVoteJob Table:**
+- `status`: pending | running | completed | failed
+- `currentRound`, `currentPhase`: Progress tracking
+- `result`: JSON stringified voting result
+- `roundTableId`: References ephemeral round table (cascade delete)
+
+### Performance
+
+Typical execution times:
+- **3 agents, 10 rounds**: ~18 minutes
+- **5 agents, 10 rounds**: ~30 minutes
+
+Jobs auto-cleanup after 7 days. Stale running jobs (>2 hours) marked as failed.
