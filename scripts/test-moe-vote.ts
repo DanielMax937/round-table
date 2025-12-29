@@ -1,9 +1,14 @@
 // Integration test for MoE voting system
 
+// Constants
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_TIME_MS = 20 * 60 * 1000; // 20 minutes
+const MAX_POLL_COUNT = Math.floor(MAX_POLL_TIME_MS / POLL_INTERVAL_MS);
+
 async function testMoeVoteWorkflow() {
   console.log('🧪 Testing MoE Vote Workflow\n');
 
-  const baseUrl = 'http://localhost:3000';
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
 
   try {
     // Test 1: Create job
@@ -22,7 +27,11 @@ async function testMoeVoteWorkflow() {
       throw new Error(`Failed to create job: ${await createResponse.text()}`);
     }
 
-    const { jobId, estimatedCompletionTime } = await createResponse.json();
+    const responseData = await createResponse.json();
+    if (!responseData.jobId || !responseData.estimatedCompletionTime) {
+      throw new Error('Invalid response: missing required fields');
+    }
+    const { jobId, estimatedCompletionTime } = responseData;
     console.log(`   ✅ Job created: ${jobId}`);
     console.log(
       `   ⏱️  Estimated completion: ${Math.round(estimatedCompletionTime / 1000)}s\n`
@@ -34,9 +43,13 @@ async function testMoeVoteWorkflow() {
     let pollCount = 0;
 
     while (status !== 'completed' && status !== 'failed') {
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Poll every 5s
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
 
       const pollResponse = await fetch(`${baseUrl}/api/moe-vote/${jobId}`);
+      if (!pollResponse.ok) {
+        console.log(`   ⚠️  Polling failed (${pollResponse.status}), retrying...`);
+        continue;
+      }
       const jobStatus = await pollResponse.json();
       status = jobStatus.status;
 
@@ -49,8 +62,7 @@ async function testMoeVoteWorkflow() {
       }
 
       // Safety limit for testing
-      if (pollCount > 240) {
-        // 20 minutes max
+      if (pollCount > MAX_POLL_COUNT) {
         console.log('   ⚠️  Polling timeout - job taking too long');
         break;
       }
@@ -59,14 +71,17 @@ async function testMoeVoteWorkflow() {
     // Test 3: Get final result
     console.log('\n3️⃣  Getting final result...');
     const finalResponse = await fetch(`${baseUrl}/api/moe-vote/${jobId}`);
+    if (!finalResponse.ok) {
+      throw new Error(`Failed to get final result: ${finalResponse.status}`);
+    }
     const finalJob = await finalResponse.json();
 
-    if (finalJob.status === 'completed') {
+    if (finalJob.status === 'completed' && finalJob.result) {
       console.log('   ✅ Job completed successfully!\n');
       console.log('   🏆 Winner:', finalJob.result.winner.agentName);
       console.log('   📊 Score:', finalJob.result.winner.averageScore.toFixed(2));
       console.log('\n   📈 All Scores:');
-      Object.entries(finalJob.result.scores).forEach(([id, score]: [string, any]) => {
+      Object.entries(finalJob.result.scores).forEach(([id, score]) => {
         console.log(`      ${score.agentName}: ${score.averageScore.toFixed(2)}/10`);
         console.log(`         Votes: ${score.votes.length}`);
       });
@@ -78,6 +93,8 @@ async function testMoeVoteWorkflow() {
       console.log(
         `      Tool Calls: ${finalJob.result.discussionSummary.toolCallsUsed}`
       );
+    } else if (finalJob.status === 'completed') {
+      console.log('   ⚠️  Job completed but result is missing');
     } else if (finalJob.status === 'failed') {
       console.log('   ❌ Job failed:', finalJob.error);
     }
@@ -88,6 +105,7 @@ async function testMoeVoteWorkflow() {
     console.log(`   💡 To delete: DELETE ${baseUrl}/api/moe-vote/${jobId}\n`);
 
     console.log('✨ Integration test complete!\n');
+    process.exit(0);
   } catch (error) {
     console.error('\n❌ Test failed:', error);
     process.exit(1);
