@@ -29,12 +29,18 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
     throw new Error(`Job ${jobId} not found`);
   }
 
-  // Mark as running
-  await updateMoeVoteJobStatus(jobId, 'running');
-
   try {
+    // Mark as running
+    await updateMoeVoteJobStatus(jobId, 'running');
+
     // Get agents and round table
     const agents = await getAgentsByRoundTable(job.roundTableId);
+
+    // Validate agents array is not empty
+    if (!agents || agents.length === 0) {
+      throw new Error(`Round table ${job.roundTableId} has no agents`);
+    }
+
     const roundTable = await getRoundTableWithDetails(job.roundTableId);
 
     if (!roundTable) {
@@ -60,10 +66,13 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
         agents,
         job.question,
         roundNum,
-        previousMessages.map((m) => ({
-          ...m,
-          agent: agents.find((a) => a.id === m.agentId)!,
-        })),
+        previousMessages
+          .map((m) => {
+            const agent = agents.find((a) => a.id === m.agentId);
+            if (!agent) return null;
+            return { ...m, agent };
+          })
+          .filter((m): m is NonNullable<typeof m> => m !== null),
         {
           apiKey,
           onEvent: () => {}, // No event handling in background
@@ -89,10 +98,13 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
     const allMessages = await getAllMessagesForRoundTable(job.roundTableId);
     const votingResult = await executeVoting(
       agents,
-      allMessages.map((m) => ({
-        ...m,
-        agent: agents.find((a) => a.id === m.agentId)!,
-      })),
+      allMessages
+        .map((m) => {
+          const agent = agents.find((a) => a.id === m.agentId);
+          if (!agent) return null;
+          return { ...m, agent };
+        })
+        .filter((m): m is NonNullable<typeof m> => m !== null),
       job.question,
       job.includeDiscussionAgentsInVoting,
       apiKey
