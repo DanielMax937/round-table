@@ -144,3 +144,25 @@ export interface AgentContext {
   previousMessages: (Message & { agent: Agent })[];
   currentRoundMessages: (Message & { agent: Agent })[];
 }
+
+// MoeVote Job types
+export type MoeVoteJobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type MoeVoteJobPhase = 'discussion' | 'voting' | 'aggregating';
+
+export interface MoeVoteJobResult {
+  winner: {
+    agentId: string;
+    agentName: string;
+    averageScore: number;
+  };
+  scores: Record<string, {
+    agentName: string;
+    averageScore: number;
+    votes: unknown[];
+  }>;
+  discussionSummary: {
+    roundCount: number;
+    totalMessages: number;
+    toolCallsUsed: number;
+  };
+}

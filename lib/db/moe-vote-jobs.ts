@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { MoeVoteJob } from '@prisma/client';
+import { MoeVoteJobStatus, MoeVoteJobPhase, MoeVoteJobResult } from '@/lib/types';
 
 export interface CreateMoeVoteJobParams {
   roundTableId: string;
@@ -31,7 +32,7 @@ export async function getMoeVoteJob(id: string): Promise<MoeVoteJob | null> {
 
 export async function updateMoeVoteJobStatus(
   id: string,
-  status: string
+  status: MoeVoteJobStatus
 ): Promise<MoeVoteJob> {
   return await prisma.moeVoteJob.update({
     where: { id },
@@ -45,7 +46,7 @@ export async function updateMoeVoteJobStatus(
 export async function updateMoeVoteJobProgress(
   id: string,
   currentRound: number,
-  currentPhase: string
+  currentPhase: MoeVoteJobPhase
 ): Promise<MoeVoteJob> {
   return await prisma.moeVoteJob.update({
     where: { id },
@@ -55,7 +56,7 @@ export async function updateMoeVoteJobProgress(
 
 export async function completeMoeVoteJob(
   id: string,
-  result: any
+  result: MoeVoteJobResult
 ): Promise<MoeVoteJob> {
   return await prisma.moeVoteJob.update({
     where: { id },
