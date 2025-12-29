@@ -4,6 +4,15 @@ import { Vote, VotingResult, AgentScore, VotingAgent, VoterEvaluation } from '@/
 import { getVotingAgents } from './voting-personas';
 
 /**
+ * Parse round number from roundId (format: "N-roundtable-id")
+ */
+function parseRoundNumber(roundId: string | null): number {
+  if (!roundId) return 1;
+  const parsed = parseInt(roundId.split('-')[0], 10);
+  return isNaN(parsed) ? 1 : parsed;
+}
+
+/**
  * Aggregate votes from all voters into average scores
  */
 export function aggregateVotes(
@@ -93,7 +102,7 @@ export function buildVotingContext(
   // Full transcript organized by round
   const rounds = new Map<number, (Message & { agent: AgentModel })[]>();
   for (const msg of allMessages) {
-    const roundNum = msg.roundId ? parseInt(msg.roundId.split('-')[0]) || 1 : 1;
+    const roundNum = parseRoundNumber(msg.roundId);
     if (!rounds.has(roundNum)) {
       rounds.set(roundNum, []);
     }
@@ -167,6 +176,11 @@ export async function executeVoterEvaluation(
     // Parse JSON response
     const evaluation: VoterEvaluation = JSON.parse(textContent);
 
+    // Validate evaluation structure
+    if (!evaluation.evaluations || !Array.isArray(evaluation.evaluations)) {
+      throw new Error('Invalid evaluation structure: missing or invalid evaluations array');
+    }
+
     // Convert to Vote objects
     const votes: Vote[] = evaluation.evaluations.map((e) => ({
       agentId: e.agentId,
@@ -201,6 +215,11 @@ export async function executeVoting(
   includeDiscussionAgents: boolean,
   apiKey: string
 ): Promise<VotingResult> {
+  // Guard against empty discussion agents
+  if (discussionAgents.length === 0) {
+    throw new Error('At least one discussion agent is required for voting');
+  }
+
   // Get voting agents
   const votingAgents = getVotingAgents();
 
@@ -254,12 +273,7 @@ export async function executeVoting(
     scores: aggregatedScores,
     discussionSummary: {
       roundCount: Math.max(
-        ...allMessages.map((m) => {
-          const roundNum = m.roundId
-            ? parseInt(m.roundId.split('-')[0]) || 1
-            : 1;
-          return roundNum;
-        }),
+        ...allMessages.map((m) => parseRoundNumber(m.roundId)),
         1
       ),
       totalMessages: allMessages.length,

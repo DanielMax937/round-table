@@ -1,9 +1,10 @@
 import { describe, test, expect } from 'vitest';
 import { aggregateVotes, determineWinner } from '../voting';
 import { Vote, AgentScore } from '@/lib/moe-vote/types';
+import { Agent as AgentModel } from '@prisma/client';
 
 describe('Voting Logic', () => {
-  const mockAgents = [
+  const mockAgents: Pick<AgentModel, 'id' | 'name'>[] = [
     { id: 'a1', name: 'Agent 1' },
     { id: 'a2', name: 'Agent 2' },
     { id: 'a3', name: 'Agent 3' },
@@ -34,7 +35,7 @@ describe('Voting Logic', () => {
       },
     ];
 
-    const aggregated = aggregateVotes(votes, mockAgents as any);
+    const aggregated = aggregateVotes(votes, mockAgents as AgentModel[]);
 
     expect(aggregated['a1'].averageScore).toBe(7); // (8+6)/2
     expect(aggregated['a1'].votes.length).toBe(2);
@@ -91,5 +92,47 @@ describe('Voting Logic', () => {
 
     expect(winner.agentId).toBe('a1');
     expect(winner.averageScore).toBe(8.0);
+  });
+
+  test('aggregateVotes handles empty votes', () => {
+    const aggregated = aggregateVotes([], mockAgents as AgentModel[]);
+    expect(aggregated['a1'].averageScore).toBe(0);
+    expect(aggregated['a1'].votes.length).toBe(0);
+    expect(aggregated['a2'].averageScore).toBe(0);
+    expect(aggregated['a3'].averageScore).toBe(0);
+  });
+
+  test('aggregateVotes ignores votes for non-existent agents', () => {
+    const votes: Vote[] = [
+      {
+        agentId: 'non-existent',
+        voterId: 'v1',
+        voterName: 'Voter 1',
+        score: 10,
+        justification: 'Test',
+      },
+    ];
+    const aggregated = aggregateVotes(votes, mockAgents as AgentModel[]);
+    expect(aggregated['a1']).toBeDefined();
+    expect(aggregated['a2']).toBeDefined();
+    expect(aggregated['a3']).toBeDefined();
+    // Should not add non-existent agent
+    expect(Object.keys(aggregated).length).toBe(3);
+  });
+
+  test('aggregateVotes handles agent with zero votes', () => {
+    const votes: Vote[] = [
+      {
+        agentId: 'a1',
+        voterId: 'v1',
+        voterName: 'Voter 1',
+        score: 8,
+        justification: 'Good',
+      },
+    ];
+    const aggregated = aggregateVotes(votes, mockAgents as AgentModel[]);
+    expect(aggregated['a2'].averageScore).toBe(0);
+    expect(aggregated['a2'].votes.length).toBe(0);
+    expect(aggregated['a3'].averageScore).toBe(0);
   });
 });
