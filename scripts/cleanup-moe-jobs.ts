@@ -1,4 +1,5 @@
 import { cleanupOldJobs, cleanupStaleJobs } from '@/lib/moe-vote/cleanup';
+import { prisma } from '@/lib/prisma';
 
 async function cleanup() {
   console.log('🧹 Cleaning up MoE vote jobs...\n');
@@ -18,6 +19,8 @@ async function cleanup() {
   } catch (error) {
     console.error('❌ Cleanup failed:', error);
     process.exit(1);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
