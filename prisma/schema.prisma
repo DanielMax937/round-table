@@ -20,6 +20,35 @@ model RoundTable {
 
   agents Agent[]
   rounds Round[]
+  moeVoteJob  MoeVoteJob?
+}
+
+model MoeVoteJob {
+  id                              String   @id @default(cuid())
+  status                          String   // "pending" | "running" | "completed" | "failed"
+  question                        String
+  includeDiscussionAgentsInVoting Boolean  @default(false)
+  agentCount                      Int      @default(3)
+
+  // References ephemeral round table
+  roundTableId                    String   @unique
+  roundTable                      RoundTable @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+
+  // Progress tracking
+  currentRound                    Int?
+  currentPhase                    String?  // "discussion" | "voting" | "aggregating"
+
+  // Results (JSON stringified)
+  result                          String?
+  error                           String?
+
+  // Timestamps
+  createdAt                       DateTime @default(now())
+  startedAt                       DateTime?
+  completedAt                     DateTime?
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Agent {
