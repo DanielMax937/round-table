@@ -184,12 +184,12 @@ async function fetchJinaContent(
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
-      'X-With-Generated-Alt': 'true', // Request alt text for images
     };
 
-    // Add authorization header if API key is available
+    // Add optional features if API key is available
     if (searchConfig.jinaApiKey) {
       headers['Authorization'] = `Bearer ${searchConfig.jinaApiKey}`;
+      headers['X-With-Generated-Alt'] = 'true'; // Request alt text for images (requires auth)
     }
 
     const response = await fetch(jinaUrl, {
