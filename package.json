@@ -10,7 +10,8 @@
     "test:db": "tsx scripts/test-db.ts",
     "test:agents": "tsx scripts/test-agents.ts",
     "test:api": "tsx scripts/test-api.ts",
-    "test:blog": "tsx scripts/test-blog-synthesis.ts"
+    "test:blog": "tsx scripts/test-blog-synthesis.ts",
+    "test:websearch-enhanced": "tsx scripts/test-websearch-enhanced.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",

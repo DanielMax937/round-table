@@ -5,8 +5,8 @@ import { RoundTable, Agent, Round, Message as PrismaMessage } from '@prisma/clie
 // Prisma model types with relations
 export type { RoundTable, Agent, Round };
 
-// Message type with tool calls parsed
-export interface Message extends PrismaMessage {
+// Message type with tool calls parsed from JSON
+export interface Message extends Omit<PrismaMessage, 'toolCalls'> {
   toolCalls?: ToolCall[];
 }
 
