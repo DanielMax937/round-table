@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MessageBubble from './MessageBubble';
 import AgentIndicator from './AgentIndicator';
+import { BlogPostModal } from './BlogPostModal';
 
 interface Agent {
   id: string;
@@ -57,6 +58,7 @@ export default function DiscussionView({
   const [streamingToolCalls, setStreamingToolCalls] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
+  const [showBlogModal, setShowBlogModal] = useState(false);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -304,15 +306,33 @@ export default function DiscussionView({
             )}
           </div>
 
-          <button
-            onClick={() => updateStatus('archived')}
-            disabled={isStreaming}
-            className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
-          >
-            Archive
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBlogModal(true)}
+              disabled={isStreaming || rounds.length === 0}
+              className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+              title={rounds.length === 0 ? 'Complete at least one round to generate a blog post' : ''}
+            >
+              Generate Blog Post
+            </button>
+
+            <button
+              onClick={() => updateStatus('archived')}
+              disabled={isStreaming}
+              className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+            >
+              Archive
+            </button>
+          </div>
         </div>
       </div>
+
+      <BlogPostModal
+        isOpen={showBlogModal}
+        onClose={() => setShowBlogModal(false)}
+        roundTableId={roundTableId}
+        topic={topic}
+      />
     </div>
   );
 }
