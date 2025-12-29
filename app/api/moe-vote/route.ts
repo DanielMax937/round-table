@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRoundTable } from '@/lib/db/roundtable';
+import { createRoundTable, deleteRoundTable } from '@/lib/db/roundtable';
 import { createMoeVoteJob } from '@/lib/db/moe-vote-jobs';
 import { executeJobInBackground } from '@/lib/moe-vote/executor';
 import { validateMoeVoteRequest, MOE_VOTE_CONFIG } from '@/lib/moe-vote/config';
@@ -9,6 +9,8 @@ import {
 } from '@/lib/moe-vote/types';
 
 export async function POST(request: NextRequest) {
+  let roundTable;
+
   try {
     const body: CreateMoeVoteRequest = await request.json();
 
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Create ephemeral round table (this also creates agents)
-    const roundTable = await createRoundTable(question, agentCount);
+    roundTable = await createRoundTable(question, agentCount);
 
     // Create MoE vote job
     const job = await createMoeVoteJob({
@@ -54,8 +56,17 @@ export async function POST(request: NextRequest) {
       estimatedCompletionTime: estimatedTime,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { status: 201 });
   } catch (error) {
+    // Cleanup orphaned round table if job creation failed
+    if (roundTable) {
+      try {
+        await deleteRoundTable(roundTable.id);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup orphaned round table:', cleanupError);
+      }
+    }
+
     console.error('Error creating MoE vote job:', error);
     return NextResponse.json(
       {
