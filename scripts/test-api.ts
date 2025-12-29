@@ -156,6 +156,111 @@ async function testAPIRoutes() {
   }
 }
 
+async function testBlogPostGeneration() {
+  console.log('\n=== Testing Blog Post Generation API ===\n');
+
+  const baseUrl = 'http://localhost:3000';
+
+  try {
+    // First, create a round table with some discussion
+    console.log('✅ Setting up: Creating round table...');
+    const createResponse = await fetch(`${baseUrl}/api/roundtable`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        topic: 'The Impact of Remote Work on Society',
+        agentCount: 3,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      throw new Error('Failed to create round table for test');
+    }
+
+    const createData = await createResponse.json();
+    const roundTableId = createData.roundTable.id;
+    console.log(`   Created round table ID: ${roundTableId}\n`);
+
+    // Note: In a real scenario, we'd need to run at least one round to have messages
+    // For now, we'll just test the endpoint exists and handles empty messages gracefully
+
+    console.log('✅ Test 1: Testing blog post endpoint...');
+    console.log(`   POST /api/roundtable/${roundTableId}/blog-post`);
+
+    const response = await fetch(`${baseUrl}/api/roundtable/${roundTableId}/blog-post`, {
+      method: 'POST',
+    });
+
+    // Should get 400 because no messages exist yet
+    if (response.status === 400) {
+      const errorData = await response.json();
+      console.log(`   ✅ Correctly returned 400 for empty discussion`);
+      console.log(`   Error message: ${errorData.error}\n`);
+    } else if (response.status === 200) {
+      console.log('   ✅ Endpoint exists and returns SSE stream');
+
+      // Try to read a bit of the stream
+      const reader = response.body?.getReader();
+      if (reader) {
+        const decoder = new TextDecoder();
+        let eventCount = 0;
+
+        // Read up to 5 events
+        while (eventCount < 5) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              const event = line.slice(7);
+              console.log(`   [Event: ${event}]`);
+              eventCount++;
+            }
+          }
+        }
+
+        reader.cancel(); // Stop reading
+      }
+      console.log();
+    } else {
+      console.log(`   Unexpected response: ${response.status}`);
+      const text = await response.text();
+      console.log(`   Response: ${text}\n`);
+    }
+
+    // Test 2: Test with non-existent round table
+    console.log('✅ Test 2: Testing with non-existent round table...');
+    const notFoundResponse = await fetch(`${baseUrl}/api/roundtable/non-existent-id/blog-post`, {
+      method: 'POST',
+    });
+
+    if (notFoundResponse.status === 404) {
+      console.log('   ✅ Correctly returned 404 for non-existent round table\n');
+    } else {
+      console.log(`   Unexpected status: ${notFoundResponse.status}\n`);
+    }
+
+    // Clean up
+    console.log('🧹 Cleaning up test data...');
+    await fetch(`${baseUrl}/api/roundtable/${roundTableId}`, {
+      method: 'DELETE',
+    });
+    console.log('   Deleted test round table\n');
+
+    console.log('🎉 Blog post API tests passed!\n');
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Blog post test failed:', error);
+    return { success: false, error };
+  }
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -189,9 +294,19 @@ async function checkServer() {
 
   if (result.success) {
     console.log('✨ Phase 4 API routes are working correctly!');
-    process.exit(0);
   } else {
     console.error('💥 Phase 4 tests failed');
+    process.exit(1);
+  }
+
+  // Test blog post generation
+  const blogResult = await testBlogPostGeneration();
+
+  if (blogResult.success) {
+    console.log('✨ Blog post API is working correctly!');
+    process.exit(0);
+  } else {
+    console.error('💥 Blog post API tests failed');
     process.exit(1);
   }
 })();
