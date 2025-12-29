@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface BlogPostModalProps {
   isOpen: boolean;
@@ -13,6 +13,37 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
   const [isGenerating, setIsGenerating] = useState(false);
   const [blogPost, setBlogPost] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Issue 2: Cleanup AbortController on unmount or when modal closes
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Abort ongoing request when modal closes during generation
+  useEffect(() => {
+    if (!isOpen && isGenerating && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }, [isOpen, isGenerating]);
+
+  // Issue 1: Keyboard navigation - ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -21,9 +52,13 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
     setError(null);
     setBlogPost('');
 
+    // Issue 2: Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await fetch(`/api/roundtable/${roundTableId}/blog-post`, {
         method: 'POST',
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -53,21 +88,32 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
             // Event type line
             continue;
           } else if (line.startsWith('data:')) {
-            const data = JSON.parse(line.slice(6));
+            // Issue 3: Safe JSON parsing with try-catch
+            try {
+              const data = JSON.parse(line.slice(6));
 
-            if (data.chunk) {
-              setBlogPost(prev => prev + data.chunk);
-            } else if (data.error) {
-              setError(data.error);
+              if (data.chunk) {
+                setBlogPost(prev => prev + data.chunk);
+              } else if (data.error) {
+                setError(data.error);
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE data:', line, parseError);
+              // Continue processing other lines instead of failing completely
             }
           }
         }
       }
 
     } catch (err) {
+      // Don't show error if request was aborted intentionally
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsGenerating(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -89,14 +135,20 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="blog-post-modal-title"
+    >
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Generate Blog Post</h2>
+          <h2 id="blog-post-modal-title" className="text-2xl font-bold text-gray-900">Generate Blog Post</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            aria-label="Close modal"
           >
             ×
           </button>
