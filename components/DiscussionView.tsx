@@ -20,7 +20,7 @@ interface Round {
     id: string;
     agentId: string;
     content: string;
-    toolCalls?: string;
+    toolCalls?: any[];
     createdAt: Date;
     agent: Agent;
   }>;
@@ -255,7 +255,7 @@ export default function DiscussionView({
                 key={message.id}
                 agentName={message.agent.name}
                 content={message.content}
-                toolCalls={message.toolCalls ? JSON.parse(message.toolCalls) : []}
+                toolCalls={message.toolCalls || []}
                 timestamp={new Date(message.createdAt)}
               />
             ))}

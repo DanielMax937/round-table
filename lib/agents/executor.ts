@@ -14,10 +14,22 @@ export function buildAgentContext(
   previousMessages: (Message & { agent: AgentModel })[],
   currentRoundMessages: (Message & { agent: AgentModel })[]
 ): AgentContext {
-  // Parse toolCalls from JSON string to object
+  // Parse toolCalls from JSON string to object (safely)
+  const safeParseToolCalls = (toolCalls: unknown): any[] | undefined => {
+    if (!toolCalls || typeof toolCalls !== 'string' || toolCalls.trim() === '') {
+      return undefined;
+    }
+    try {
+      return JSON.parse(toolCalls);
+    } catch {
+      console.warn('Failed to parse toolCalls JSON:', toolCalls);
+      return undefined;
+    }
+  };
+
   const mapMessage = (msg: Message & { agent: AgentModel }) => ({
     ...msg,
-    toolCalls: msg.toolCalls ? JSON.parse(msg.toolCalls as string) : undefined
+    toolCalls: safeParseToolCalls(msg.toolCalls)
   });
 
   return {

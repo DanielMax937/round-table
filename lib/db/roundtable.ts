@@ -101,6 +101,9 @@ export async function getRoundTableWithDetails(id: string): Promise<RoundTableWi
             orderBy: {
               createdAt: 'asc',
             },
+            include: {
+              agent: true,
+            },
           },
         },
       },
