@@ -21,6 +21,10 @@ export const searchConfig = {
   // Concurrency control for Jina enrichment
   jinaMaxConcurrency: 3, // Fetch 3 URLs in parallel max
 
+  // Playwright Scraper Configuration
+  usePlaywrightScraper: process.env.USE_PLAYWRIGHT_SCRAPER === 'true',
+  playwrightMaxConcurrency: 5, // Scrape 5 URLs in parallel
+
   // Cache TTL (24 hours in milliseconds)
   cacheTTL: 24 * 60 * 60 * 1000,
 } as const;

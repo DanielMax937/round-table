@@ -26,6 +26,7 @@ Create a new round table with agents.
 {
   "topic": "string (required)",
   "agentCount": "number (2-6, required)",
+  "maxRounds": "number (1-50, optional, default: 5)",
   "customPersonas": "Array<AgentPersona> (optional)"
 }
 ```
@@ -49,6 +50,7 @@ curl -X POST http://localhost:3000/api/roundtable \
     "id": "cmjpre7pg000010ud61tgbi5s",
     "topic": "Should AI have rights?",
     "agentCount": 3,
+    "maxRounds": 5,
     "status": "active",
     "createdAt": "2025-12-28T13:22:21.713Z",
     "agents": [
@@ -92,6 +94,7 @@ curl http://localhost:3000/api/roundtable?status=active
       "id": "cmjpre7pg000010ud61tgbi5s",
       "topic": "Should AI have rights?",
       "agentCount": 3,
+      "maxRounds": 5,
       "status": "active",
       "createdAt": "2025-12-28T13:22:21.713Z",
       "updatedAt": "2025-12-28T13:22:21.713Z",
@@ -125,6 +128,7 @@ curl http://localhost:3000/api/roundtable/cmjpre7pg000010ud61tgbi5s
     "id": "cmjpre7pg000010ud61tgbi5s",
     "topic": "Should AI have rights?",
     "agentCount": 3,
+    "maxRounds": 5,
     "status": "active",
     "createdAt": "2025-12-28T13:22:21.713Z",
     "updatedAt": "2025-12-28T13:22:21.713Z",
@@ -345,6 +349,14 @@ All endpoints may return error responses:
 {
   "error": "Internal server error",
   "details": "Error details"
+}
+```
+
+#### 400 Bad Request (Max Rounds Reached)
+
+```json
+{
+  "error": "Maximum rounds reached (5 of 5)"
 }
 ```
 

@@ -1,7 +1,7 @@
 // POST /api/roundtable/[id]/round - Start a new round with SSE streaming
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoundTableWithDetails } from '@/lib/db/roundtable';
+import { getRoundTableWithDetails, canStartNewRound } from '@/lib/db/roundtable';
 import { getAgentsByRoundTable } from '@/lib/db/agents';
 import {
   createRound,
@@ -55,6 +55,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const validation = validateRoundExecution(agents, roundTable.topic, apiKey);
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    // Check if max rounds limit reached
+    const canStart = await canStartNewRound(id);
+    if (!canStart) {
+      const roundNumber = await getNextRoundNumber(id);
+      return NextResponse.json(
+        { error: `Maximum rounds reached (${roundTable.maxRounds} of ${roundTable.maxRounds})` },
+        { status: 400 }
+      );
     }
 
     // Create new round

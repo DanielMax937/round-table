@@ -42,6 +42,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         id: roundTable.id,
         topic: roundTable.topic,
         agentCount: roundTable.agentCount,
+        maxRounds: roundTable.maxRounds,
         status: roundTable.status,
         createdAt: roundTable.createdAt,
         updatedAt: roundTable.updatedAt,

@@ -66,13 +66,13 @@ async function testAgentIntegration() {
     }
     console.log();
 
-    // Test 5: Web search tool
-    console.log('✅ Test 5: Testing web search tool...');
-    const searchQuery = 'artificial intelligence trends 2024';
-    const validationResult = validateSearchQuery(searchQuery);
-    console.log(`   Query validation: ${validationResult.valid ? 'Valid' : validationResult.error}`);
+    // 2. Test web search tool manually
+    console.log('\n✅ Test 5: Testing web search tool...');
+    const query = `artificial intelligence trends 2024 ${Date.now()}`; // Unique query to bypass cache
+    const validation = validateSearchQuery(query);
+    console.log(`   Query validation: ${validation.valid ? 'Valid' : validation.error}`);
 
-    const searchResults = await performWebSearch(searchQuery);
+    const searchResults = await performWebSearch(query);
     console.log(`   Search results: ${searchResults.length} items`);
     console.log(`   First result title: ${searchResults[0].title}`);
     console.log();

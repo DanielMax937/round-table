@@ -45,6 +45,7 @@ export default async function DiscussionPage({ params }: PageProps) {
           agents={roundTable.agents}
           rounds={roundsWithParsedMessages}
           status={roundTable.status}
+          maxRounds={roundTable.maxRounds}
         />
       </div>
     </main>

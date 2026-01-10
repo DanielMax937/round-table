@@ -32,6 +32,7 @@ interface DiscussionViewProps {
   agents: Agent[];
   rounds: Round[];
   status: string;
+  maxRounds: number;
 }
 
 interface StreamingMessage {
@@ -47,6 +48,7 @@ export default function DiscussionView({
   agents,
   rounds,
   status,
+  maxRounds,
 }: DiscussionViewProps) {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -92,7 +94,9 @@ export default function DiscussionView({
     setStreamingToolCalls([]);
 
     try {
-      const response = await fetch(`/api/roundtable/${roundTableId}/round`);
+      const response = await fetch(`/api/roundtable/${roundTableId}/round`, {
+        method: 'POST',
+      });
 
       if (!response.ok) {
         const data = await response.json();
@@ -203,7 +207,7 @@ export default function DiscussionView({
     }
   };
 
-  const canStartRound = status === 'active' && !isStreaming;
+  const canStartRound = status === 'active' && !isStreaming && currentRound < maxRounds;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -211,7 +215,7 @@ export default function DiscussionView({
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mb-6">
         <h1 className="text-2xl font-bold mb-2">{topic}</h1>
         <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-          <span>Round {currentRound}</span>
+          <span>Round {currentRound} of {maxRounds}</span>
           <span>•</span>
           <span>{agents.length} agents</span>
           <span>•</span>
@@ -223,6 +227,19 @@ export default function DiscussionView({
       {error && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
           {error}
+        </div>
+      )}
+
+      {/* Completion Banner */}
+      {currentRound >= maxRounds && status === 'active' && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-300">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <h3 className="font-semibold">Discussion Complete!</h3>
+              <p className="text-sm">All {maxRounds} rounds finished. You can generate a blog post or review the discussion.</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -276,11 +293,10 @@ export default function DiscussionView({
             <button
               onClick={startNextRound}
               disabled={!canStartRound}
-              className={`px-6 py-2 rounded-lg font-medium text-white transition-colors ${
-                canStartRound
-                  ? 'bg-blue-500 hover:bg-blue-600'
-                  : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium text-white transition-colors ${canStartRound
+                ? 'bg-blue-500 hover:bg-blue-600'
+                : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
+                }`}
             >
               {isStreaming ? 'Discussion in progress...' : `Start Round ${currentRound + 1}`}
             </button>

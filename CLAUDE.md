@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Round Table is a multi-agent AI discussion platform where users create "round tables" with Claude agents that debate topics using distinct personas (Devil's Advocate, Optimist, Pragmatist, etc.). Agents discuss sequentially in rounds, with real-time streaming and web search capabilities.
 
 **Tech Stack:**
+
 - Frontend: Next.js 15 (App Router) + React 19 + Tailwind CSS
 - Database: SQLite with Prisma ORM
 - AI: Anthropic Claude SDK (not Agent SDK - direct API integration)
@@ -63,6 +64,7 @@ The project uses **direct Anthropic API calls**, not the Agent SDK:
 - **Orchestrator**: `lib/agents/orchestrator.ts` - Multi-agent round coordination
 
 **Key Implementation Details:**
+
 - Each agent calls the Claude API directly using `@anthropic-ai/sdk`
 - Agents execute **sequentially** (not parallel) - Agent 1 → Agent 2 → Agent 3 → back to Agent 1
 - Full conversation context is passed to each agent (all previous rounds)
@@ -106,12 +108,14 @@ The API emits these Server-Sent Events:
 ### Database Schema
 
 **Models:**
-- `RoundTable`: Topic, agentCount, status ("active" | "paused" | "archived")
+
+- `RoundTable`: Topic, agentCount, maxRounds (default 5), status ("active" | "paused" | "archived")
 - `Agent`: name, persona (system prompt), order (turn order 1, 2, 3...)
 - `Round`: roundNumber, status ("in_progress" | "completed")
 - `Message`: content, toolCalls (JSON array of web searches)
 
 **Relationships:**
+
 - RoundTable → Agents (one-to-many)
 - RoundTable → Rounds (one-to-many)
 - Round → Messages (one-to-many)
@@ -137,6 +141,7 @@ ANTHROPIC_BASE_URL="https://api.anthropic.com"  # Custom API endpoint
 ## Agent Personas
 
 Default personas are defined in `lib/personas.ts`:
+
 1. Devil's Advocate - Challenges assumptions
 2. The Optimist - Focuses on opportunities
 3. The Pragmatist - Evaluates feasibility
@@ -150,7 +155,7 @@ Users can customize these when creating a round table. Each agent maintains thei
 
 ### Creating a Round Table
 
-1. User submits form with topic and agent count
+1. User submits form with topic, agentCount, and maxRounds
 2. `POST /api/roundtable` creates RoundTable + Agent records
 3. Redirects to `/roundtable/[id]`
 
@@ -177,6 +182,7 @@ Blog posts are ephemeral - generated on-demand, not persisted.
 Critical function: `buildAgentContext()` in `lib/agents/executor.ts:12`
 
 Compiles:
+
 - Topic string
 - Round number
 - All previous messages (from past rounds)
@@ -246,6 +252,7 @@ When adding new imports, use the `@/` prefix for project files.
 ## Testing
 
 Test scripts are provided for each layer:
+
 - `test:db` - Database CRUD operations
 - `test:agents` - Agent execution with mock API
 - `test:api` - API route integration tests
@@ -274,6 +281,7 @@ The MoE voting router accepts a question, runs a 10-round discussion with config
 **POST `/api/moe-vote`** - Create async voting job
 
 Request:
+
 ```json
 {
   "question": "Should companies adopt a 4-day work week?",
@@ -283,6 +291,7 @@ Request:
 ```
 
 Response:
+
 ```json
 {
   "jobId": "cm...",
@@ -331,6 +340,7 @@ npm run moe-vote:cleanup   # Cleanup old jobs
 ### Database Schema
 
 **MoeVoteJob Table:**
+
 - `status`: pending | running | completed | failed
 - `currentRound`, `currentPhase`: Progress tracking
 - `result`: JSON stringified voting result
@@ -339,6 +349,7 @@ npm run moe-vote:cleanup   # Cleanup old jobs
 ### Performance
 
 Typical execution times:
+
 - **3 agents, 10 rounds**: ~18 minutes
 - **5 agents, 10 rounds**: ~30 minutes
 

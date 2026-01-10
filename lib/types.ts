@@ -33,13 +33,13 @@ export interface EnrichedSearchResult {
   enrichedContent: {
     markdown: string;      // Full content from Jina
     fetchedAt: Date;       // When content was fetched
-    source: 'jina' | 'fallback';  // Track if Jina succeeded
+    source: 'jina' | 'fallback' | 'scraper';  // Track if Jina succeeded
     truncated?: boolean;   // If Jina indicated truncation
   } | null;  // null if enrichment failed
 }
 
 // Update existing WebSearchResult type
-export interface WebSearchResult extends EnrichedSearchResult {}
+export interface WebSearchResult extends EnrichedSearchResult { }
 
 // Agent persona interface
 export interface AgentPersona {

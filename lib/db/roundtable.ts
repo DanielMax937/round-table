@@ -10,7 +10,8 @@ import { getDefaultPersonas } from '../personas';
 export async function createRoundTable(
   topic: string,
   agentCount: number,
-  customPersonas?: Array<{ name: string; persona: string }>
+  customPersonas?: Array<{ name: string; persona: string }>,
+  maxRounds: number = 5
 ): Promise<RoundTableWithAgents> {
   // Validate agent count
   if (agentCount < 2 || agentCount > 6) {
@@ -20,6 +21,11 @@ export async function createRoundTable(
   // Validate topic
   if (!topic || topic.trim().length === 0) {
     throw new Error('Topic cannot be empty');
+  }
+
+  // Validate maxRounds
+  if (maxRounds < 1 || maxRounds > 50) {
+    throw new Error('maxRounds must be between 1 and 50');
   }
 
   // Get personas (custom or default)
@@ -34,6 +40,7 @@ export async function createRoundTable(
     data: {
       topic: topic.trim(),
       agentCount,
+      maxRounds,
       status: 'active',
       agents: {
         create: personas.map((persona, index) => ({
@@ -207,4 +214,26 @@ export async function getRoundTablesPaginated(
     roundTables: roundTables as RoundTableWithAgents[],
     total,
   };
+}
+
+/**
+ * Check if a new round can be started (haven't reached maxRounds limit)
+ */
+export async function canStartNewRound(id: string): Promise<boolean> {
+  const roundTable = await prisma.roundTable.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          rounds: true,
+        },
+      },
+    },
+  });
+
+  if (!roundTable) {
+    return false;
+  }
+
+  return roundTable._count.rounds < roundTable.maxRounds;
 }

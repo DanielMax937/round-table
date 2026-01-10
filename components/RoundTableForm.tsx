@@ -13,6 +13,7 @@ export default function RoundTableForm() {
   const router = useRouter();
   const [topic, setTopic] = useState('');
   const [agentCount, setAgentCount] = useState(3);
+  const [maxRounds, setMaxRounds] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showPersonas, setShowPersonas] = useState(false);
@@ -48,6 +49,7 @@ export default function RoundTableForm() {
         body: JSON.stringify({
           topic: topic.trim(),
           agentCount,
+          maxRounds,
           customPersonas: showPersonas && personas.length > 0 ? personas : undefined,
         }),
       });
@@ -104,11 +106,10 @@ export default function RoundTableForm() {
                 key={count}
                 type="button"
                 onClick={() => handleAgentCountChange(count)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  agentCount === count
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${agentCount === count
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
                 disabled={isSubmitting}
               >
                 {count}
@@ -117,6 +118,26 @@ export default function RoundTableForm() {
           </div>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {agentCount} agent{agentCount > 1 ? 's' : ''} will participate in the discussion
+          </p>
+        </div>
+
+        {/* Max Rounds Input */}
+        <div className="mb-6">
+          <label htmlFor="maxRounds" className="block text-sm font-medium mb-2">
+            Maximum Rounds
+          </label>
+          <input
+            id="maxRounds"
+            type="number"
+            value={maxRounds}
+            onChange={(e) => setMaxRounds(Math.max(1, Math.min(50, parseInt(e.target.value) || 5)))}
+            min={1}
+            max={50}
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            disabled={isSubmitting}
+          />
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            The discussion will run for {maxRounds} round{maxRounds > 1 ? 's' : ''} (default: 5)
           </p>
         </div>
 
@@ -135,11 +156,10 @@ export default function RoundTableForm() {
         <button
           onClick={handleCreate}
           disabled={isSubmitting || !topic.trim()}
-          className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${
-            isSubmitting || !topic.trim()
-              ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600'
-          }`}
+          className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${isSubmitting || !topic.trim()
+            ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
+            : 'bg-blue-500 hover:bg-blue-600'
+            }`}
         >
           {isSubmitting ? 'Creating...' : 'Start Discussion'}
         </button>

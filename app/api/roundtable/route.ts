@@ -7,7 +7,7 @@ import { getDefaultPersonas } from '@/lib/personas';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, agentCount, customPersonas } = body;
+    const { topic, agentCount, customPersonas, maxRounds } = body;
 
     // Validate input
     if (!topic || typeof topic !== 'string') {
@@ -33,8 +33,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate maxRounds if provided
+    if (maxRounds !== undefined) {
+      if (typeof maxRounds !== 'number' || maxRounds < 1 || maxRounds > 50) {
+        return NextResponse.json(
+          { error: 'maxRounds must be a number between 1 and 50' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create round table
-    const roundTable = await createRoundTable(topic, agentCount, customPersonas);
+    const roundTable = await createRoundTable(topic, agentCount, customPersonas, maxRounds);
 
     return NextResponse.json(
       {
@@ -42,6 +52,7 @@ export async function POST(request: NextRequest) {
           id: roundTable.id,
           topic: roundTable.topic,
           agentCount: roundTable.agentCount,
+          maxRounds: roundTable.maxRounds,
           status: roundTable.status,
           createdAt: roundTable.createdAt,
           agents: roundTable.agents.map((agent) => ({
@@ -84,11 +95,11 @@ export async function GET(request: NextRequest) {
       roundTables: roundTables.map((rt) => ({
         id: rt.id,
         topic: rt.topic,
-        agentCount: rt.agentCount,
+        agentCount: rt.agents.length,
+        maxRounds: rt.maxRounds,
         status: rt.status,
         createdAt: rt.createdAt,
         updatedAt: rt.updatedAt,
-        agentCount: rt.agents.length,
         roundCount: rt._count?.rounds || 0,
         agents: rt.agents.map((agent) => ({
           id: agent.id,
