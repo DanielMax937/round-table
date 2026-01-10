@@ -10,7 +10,7 @@
 | RD-02 | ✅ PASSED | "Discussion Complete!" banner + "Start Round 4" disabled |
 | RD-03 | ✅ PASSED | API returns 400 with "maxRounds must be a number between 1 and 50" |
 | BL-01 | ✅ PASSED | Modal opens, content streams, markdown headers visible |
-| SR-03 | ✅ PASSED | Mock mode fallback works when SERPER_API_KEY unset |
+| SR-03 | ✅ PASSED | Returns empty list + "No related URLs found" when SERPER_API_KEY unset |
 | SR-04 | ✅ PASSED | Cache hit in 5ms vs 6295ms for fresh search |
 | VT-01 | ✅ PASSED | Job created with jobId and estimatedCompletionTime |
 | VT-02 | ✅ PASSED | Job completed, winner declared, scores available |
@@ -20,7 +20,7 @@
 | PL-01 | ✅ PASSED | Parallel scraping with 5 concurrent tabs |
 | PL-02 | ✅ PASSED | Timeout handling: YouTube times out after 15s, fallback works |
 | DB-02 | ✅ PASSED | State preserved after restart, can resume |
-| AG-02 | ⏭️ SKIPPED | API proxy doesn't support raw tool use (test requires official API) |
+| AG-02 | ✅ PASSED | Agent correctly calls web_search tool for current info queries |
 
 ### 🐛 Bugs Found & Fixed During Testing
 
@@ -36,6 +36,10 @@
    - Issue: MoE jobs failed with "Unexpected end of JSON input" when toolCalls was empty string
    - Fix: Added `safeParseToolCalls()` function with try-catch and empty string check
 
+4. **Wrong tool schema property name** (`lib/agents/tools/websearch.ts`)
+   - Issue: `webSearchTool` used `inputSchema` (camelCase) but Anthropic API expects `input_schema` (snake_case)
+   - Fix: Changed to `input_schema` with proper TypeScript type annotation
+
 ---
 
 ## 🧪 Search System Tests
@@ -46,7 +50,7 @@
 |----|-------|---------------|-------|-----------------|----------|
 | SR-01 | Default Mode (Jina) ✅ | `USE_PLAYWRIGHT_SCRAPER=false`, Valid `SERPER_API_KEY` | 1. Start agent discussion<br>2. Trigger search prompt | 1. Agent calls `web_search`<br>2. Logs show "Enriching with Jina"<br>3. Agent cites content | P0 |
 | SR-02 | Playwright Mode ✅ | `USE_PLAYWRIGHT_SCRAPER=true`, Valid `SERPER_API_KEY` | 1. Start agent discussion<br>2. Trigger search | 1. Logs show "Using Playwright Scraper"<br>2. Top 20 results scraped<br>3. Agent cites deep content | P0 |
-| SR-03 | Mock Mode Fallback ✅ | `SERPER_API_KEY` unset | 1. Start agent discussion<br>2. Trigger search | 1. Logs warn "SERPER_API_KEY not configured"<br>2. Returns mock "Wikipedia" results<br>3. No crash | P1 |
+| SR-03 | No API Key Fallback ✅ | `SERPER_API_KEY` unset | 1. Start agent discussion<br>2. Trigger search | 1. Logs warn "SERPER_API_KEY not configured"<br>2. Returns empty list<br>3. Agent told "No related URLs found" | P1 |
 | SR-04 | Cache Hit ✅ | Previous search exists | 1. Run search "AI Trends"<br>2. Run search "AI Trends" again | 1. First run: "Cache miss"<br>2. Second run: "Cache hit" (no API call) | P2 |
 
 ### 2. Playwright Scraper Specifics
@@ -65,7 +69,7 @@
 | ID | Title | Steps | Expected Result | Priority |
 |----|-------|-------|-----------------|----------|
 | AG-01 | Round Participation ✅ | 1. Create Round Table (3 agents)<br>2. Start Round 1 | 1. All 3 agents speak in order<br>2. Personas match (e.g., Critic is critical) | P0 |
-| AG-02 | Tool Use Decision ⏭️ | 1. Prompt: "What is the weather in Tokyo?" | 1. Agent identifies missing info<br>2. Calls `web_search` tool<br>3. Incorporates result in answer | P0 |
+| AG-02 | Tool Use Decision ✅ | 1. Prompt: "What is the weather in Tokyo?" | 1. Agent identifies missing info<br>2. Calls `web_search` tool<br>3. Incorporates result in answer | P0 |
 | AG-03 | Streaming ✅ | 1. Observe UI during generation | 1. Text appears chunk-by-chunk<br>2. Tool icon appears when searching<br>3. No UI freeze | P1 |
 
 ### 4. Configurable Rounds

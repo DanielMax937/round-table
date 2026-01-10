@@ -98,19 +98,8 @@ export async function performWebSearch(
  */
 async function serperSearch(query: string): Promise<SerperSearchResult[]> {
   if (!searchConfig.serperApiKey) {
-    console.warn('⚠️  SERPER_API_KEY not configured. Returning mock results for testing.');
-    return [
-      {
-        title: `Mock Result for "${query}"`,
-        url: 'https://example.com/mock-result',
-        snippet: `This is a mock search result because SERPER_API_KEY is not set. The agent successfully called the web_search tool with query: "${query}".`
-      },
-      {
-        title: 'Wikipedia: Artificial Intelligence',
-        url: 'https://en.wikipedia.org/wiki/Artificial_intelligence',
-        snippet: 'Artificial intelligence (AI) is intelligence demonstrated by machines, as opposed to the natural intelligence displayed by animals including humans.'
-      }
-    ];
+    console.warn('⚠️  SERPER_API_KEY not configured. No search results available.');
+    return [];
   }
 
   const controller = new AbortController();
@@ -316,7 +305,7 @@ export function validateSearchQuery(query: string): {
  */
 export function formatSearchResults(results: WebSearchResult[]): string {
   if (results.length === 0) {
-    return 'No results found.';
+    return 'No related URLs found. The web search returned no results. Please proceed with your existing knowledge or ask the user for more specific information.';
   }
 
   const formatted = results.map((result, index) => {
@@ -359,9 +348,9 @@ export function createWebSearchToolCall(query: string): ToolCall {
  */
 export const webSearchTool = {
   name: "web_search",
-  description: "Search the web for current information, facts, or recent events. key terms only.",
-  inputSchema: {
-    type: "object",
+  description: "Search the web for current information, facts, or recent events. Use key terms only.",
+  input_schema: {
+    type: "object" as const,
     properties: {
       query: {
         type: "string",
