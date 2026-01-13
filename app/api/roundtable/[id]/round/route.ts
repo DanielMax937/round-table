@@ -79,11 +79,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Set up Server-Sent Events stream
     const encoder = new TextEncoder();
+    let isControllerClosed = false;
+
     const stream = new ReadableStream({
       async start(controller) {
         const sendEvent = (event: string, data: any) => {
-          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+          if (isControllerClosed) return;
+          try {
+            const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(message));
+          } catch (error) {
+            // Controller may have been closed by client disconnect
+            console.error('Error sending SSE event:', error);
+            isControllerClosed = true;
+          }
         };
 
         try {
@@ -192,6 +201,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             timestamp: new Date(),
           });
 
+          isControllerClosed = true;
           controller.close();
         } catch (error) {
           console.error('Error executing round:', error);
@@ -199,6 +209,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             error: 'Round execution failed',
             details: error instanceof Error ? error.message : 'Unknown error',
           });
+          isControllerClosed = true;
           controller.close();
         }
       },

@@ -1,5 +1,5 @@
 import { Agent as AgentModel, Message } from '@prisma/client';
-import Anthropic from '@anthropic-ai/sdk';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Vote, VotingResult, AgentScore, VotingAgent, VoterEvaluation } from '@/lib/moe-vote/types';
 import { getVotingAgents } from './voting-personas';
 
@@ -152,26 +152,44 @@ export async function executeVoterEvaluation(
   votingContext: string,
   apiKey: string
 ): Promise<Vote[]> {
-  const anthropic = new Anthropic({ apiKey });
-
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: voter.persona,
-      messages: [
-        {
-          role: 'user',
-          content: votingContext,
-        },
-      ],
+    let textContent = '';
+
+    const stream = query({
+      prompt: votingContext,
+      options: {
+        systemPrompt: voter.persona,
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
     });
 
-    // Extract text content
-    const textContent = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as Anthropic.TextBlock).text)
-      .join('');
+    for await (const message of stream) {
+      // Handle streaming events for text chunks
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          textContent += event.delta.text;
+        }
+      }
+
+      // Handle final result message
+      if (message.type === 'result') {
+        if (!textContent && (message as any).result) {
+          const result = (message as any).result;
+          if (result.content) {
+            for (const block of result.content) {
+              if (block.type === 'text') {
+                textContent += block.text;
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Parse JSON response
     const evaluation: VoterEvaluation = JSON.parse(textContent);

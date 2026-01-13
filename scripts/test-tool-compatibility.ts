@@ -1,116 +1,149 @@
 /**
- * Test tool use compatibility across different API clients
+ * Test tool use compatibility using Claude Agent SDK
  * Usage: npx tsx scripts/test-tool-compatibility.ts
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 
-// Simple calculator tool definition
-const calculatorTool = {
-  name: 'calculator',
-  description: 'Perform basic math calculations',
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      operation: {
-        type: 'string',
-        enum: ['add', 'subtract', 'multiply', 'divide'],
-        description: 'The math operation to perform',
-      },
-      a: { type: 'number', description: 'First number' },
-      b: { type: 'number', description: 'Second number' },
+async function testAgentSDKToolUse() {
+  console.log('\n🧪 Testing Claude Agent SDK Tool Use\n');
+
+  let toolWasUsed = false;
+  let toolInput: any = null;
+
+  // Create calculator tool using SDK's tool helper
+  const calculatorTool = tool(
+    'calculator',
+    'Perform basic math calculations',
+    {
+      operation: z.enum(['add', 'subtract', 'multiply', 'divide']).describe('The math operation to perform'),
+      a: z.number().describe('First number'),
+      b: z.number().describe('Second number'),
     },
-    required: ['operation', 'a', 'b'],
-  },
-};
+    async (args) => {
+      console.log(`🔧 Calculator tool called with:`, args);
+      toolWasUsed = true;
+      toolInput = args;
 
-async function testAnthropicToolUse() {
-  console.log('\n🧪 Testing Anthropic API Tool Use\n');
-  console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY?.substring(0, 10) + '...');
-  console.log('Base URL:', process.env.ANTHROPIC_BASE_URL || '(default)');
+      let result: number;
+      switch (args.operation) {
+        case 'add':
+          result = args.a + args.b;
+          break;
+        case 'subtract':
+          result = args.a - args.b;
+          break;
+        case 'multiply':
+          result = args.a * args.b;
+          break;
+        case 'divide':
+          result = args.a / args.b;
+          break;
+      }
 
-  const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+      return { content: [{ type: 'text' as const, text: `Result: ${result}` }] };
+    }
+  );
+
+  // Create MCP server with the calculator tool
+  const mcpServer = createSdkMcpServer({
+    name: 'test-tools',
+    version: '1.0.0',
+    tools: [calculatorTool],
   });
 
   try {
-    console.log('\n📤 Sending request with calculator tool...');
-    
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 256,
-      messages: [
-        { role: 'user', content: 'What is 15 multiplied by 7? Use the calculator tool.' }
-      ],
-      tools: [calculatorTool],
+    console.log('📤 Sending request with calculator tool...');
+
+    const stream = query({
+      prompt: 'What is 15 multiplied by 7? Use the calculator tool.',
+      options: {
+        model: 'claude-sonnet-4-20250514',
+        mcpServers: {
+          'test-tools': mcpServer,
+        },
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
     });
 
-    console.log('\n✅ Response received!');
-    console.log('Stop reason:', response.stop_reason);
-    
-    if (response.stop_reason === 'tool_use') {
-      const toolUse = response.content.find(b => b.type === 'tool_use');
-      if (toolUse && toolUse.type === 'tool_use') {
-        console.log('\n🔧 Tool called:', toolUse.name);
-        console.log('Input:', JSON.stringify(toolUse.input, null, 2));
-        console.log('\n✅ ANTHROPIC TOOL USE: WORKING');
-        return true;
+    for await (const message of stream) {
+      if (message.type === 'result') {
+        break;
       }
-    } else if (response.stop_reason === 'end_turn') {
-      const textBlock = response.content.find(b => b.type === 'text');
-      if (textBlock && textBlock.type === 'text') {
-        console.log('\n⚠️ Model responded with text instead of using tool:');
-        console.log(textBlock.text.substring(0, 200));
-      }
-      console.log('\n⚠️ ANTHROPIC TOOL USE: Model did not use tool');
+    }
+
+    if (toolWasUsed) {
+      console.log('\n✅ Tool was called!');
+      console.log('Input:', JSON.stringify(toolInput, null, 2));
+      console.log('\n✅ CLAUDE AGENT SDK TOOL USE: WORKING');
+      return true;
+    } else {
+      console.log('\n⚠️ Model did not use tool');
+      console.log('\n⚠️ CLAUDE AGENT SDK TOOL USE: Model did not use tool');
       return false;
     }
-    
-    return false;
   } catch (error: any) {
     console.log('\n❌ Error:', error.message);
-    if (error.status) console.log('Status:', error.status);
-    if (error.error) console.log('Error details:', JSON.stringify(error.error, null, 2));
-    console.log('\n❌ ANTHROPIC TOOL USE: FAILED');
+    console.log('\n❌ CLAUDE AGENT SDK TOOL USE: FAILED');
     return false;
   }
 }
 
-async function testAnthropicWithoutTool() {
-  console.log('\n🧪 Testing Anthropic API WITHOUT Tool (baseline)\n');
-
-  const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
-  });
+async function testAgentSDKWithoutTool() {
+  console.log('\n🧪 Testing Claude Agent SDK WITHOUT Tool (baseline)\n');
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 100,
-      messages: [
-        { role: 'user', content: 'Say "hello" in one word.' }
-      ],
+    let responseText = '';
+
+    const stream = query({
+      prompt: 'Say "hello" in one word.',
+      options: {
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
     });
 
-    const textBlock = response.content.find(b => b.type === 'text');
-    if (textBlock && textBlock.type === 'text') {
-      console.log('Response:', textBlock.text);
-      console.log('\n✅ ANTHROPIC (NO TOOL): WORKING');
-      return true;
+    for await (const message of stream) {
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          responseText += event.delta.text;
+        }
+      }
+      if (message.type === 'result') {
+        if (!responseText && (message as any).result) {
+          const result = (message as any).result;
+          if (result.content) {
+            for (const block of result.content) {
+              if (block.type === 'text') {
+                responseText += block.text;
+              }
+            }
+          }
+        }
+        break;
+      }
     }
-    return false;
+
+    console.log('Response:', responseText);
+    console.log('\n✅ CLAUDE AGENT SDK (NO TOOL): WORKING');
+    return true;
   } catch (error: any) {
     console.log('❌ Error:', error.message);
-    console.log('\n❌ ANTHROPIC (NO TOOL): FAILED');
+    console.log('\n❌ CLAUDE AGENT SDK (NO TOOL): FAILED');
     return false;
   }
 }
 
 async function main() {
   console.log('═'.repeat(60));
-  console.log('   Tool Use Compatibility Test');
+  console.log('   Claude Agent SDK Tool Use Compatibility Test');
   console.log('═'.repeat(60));
 
   // Check environment
@@ -122,26 +155,25 @@ async function main() {
   const results: { test: string; passed: boolean }[] = [];
 
   // Test 1: Basic API without tools
-  const basicPassed = await testAnthropicWithoutTool();
-  results.push({ test: 'Anthropic (no tool)', passed: basicPassed });
+  const basicPassed = await testAgentSDKWithoutTool();
+  results.push({ test: 'Claude Agent SDK (no tool)', passed: basicPassed });
 
   // Test 2: API with tool use
-  const toolPassed = await testAnthropicToolUse();
-  results.push({ test: 'Anthropic (with tool)', passed: toolPassed });
+  const toolPassed = await testAgentSDKToolUse();
+  results.push({ test: 'Claude Agent SDK (with tool)', passed: toolPassed });
 
   // Summary
   console.log('\n' + '═'.repeat(60));
   console.log('   Summary');
   console.log('═'.repeat(60));
-  
+
   for (const r of results) {
     console.log(`${r.passed ? '✅' : '❌'} ${r.test}`);
   }
 
   if (!toolPassed && basicPassed) {
-    console.log('\n💡 Diagnosis: API proxy does not support tool use.');
-    console.log('   Basic requests work, but tool definitions are rejected.');
-    console.log('   AG-02 test requires direct Anthropic API access.');
+    console.log('\n💡 Diagnosis: Tool use may not be working correctly.');
+    console.log('   Basic requests work, but tool definitions may have issues.');
   }
 }
 

@@ -1,6 +1,6 @@
-// Blog post synthesis using Claude API
+// Blog post synthesis using Claude Agent SDK
 
-import Anthropic from '@anthropic-ai/sdk';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 import { SynthesisEvent, SynthesisInput } from './types';
 
 /**
@@ -87,11 +87,6 @@ export async function* synthesizeBlogPost(
     return;
   }
 
-  const anthropic = new Anthropic({
-    apiKey,
-    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
-  });
-
   yield {
     type: 'synthesis-start',
     data: { timestamp: new Date() }
@@ -99,24 +94,24 @@ export async function* synthesizeBlogPost(
 
   try {
     const prompt = buildSynthesisPrompt(input);
-
-    const stream = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      stream: true,
-    });
-
     let fullContent = '';
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
+    const stream = query({
+      prompt,
+      options: {
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
+    });
+
+    for await (const message of stream) {
+      // Handle streaming events for text chunks
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
           const chunk = event.delta.text;
           fullContent += chunk;
 
@@ -127,6 +122,20 @@ export async function* synthesizeBlogPost(
               timestamp: new Date()
             }
           };
+        }
+      }
+
+      // Handle final result message
+      if (message.type === 'result') {
+        if (!fullContent && (message as any).result) {
+          const result = (message as any).result;
+          if (result.content) {
+            for (const block of result.content) {
+              if (block.type === 'text') {
+                fullContent += block.text;
+              }
+            }
+          }
         }
       }
     }

@@ -5,7 +5,23 @@ import { getAllRoundTables } from '@/lib/db/roundtable';
 export const dynamic = 'force-dynamic';
 
 export default async function HistoryPage() {
-  const roundTables = await getAllRoundTables();
+  const rawRoundTables = await getAllRoundTables();
+
+  // Transform to match component interface
+  const roundTables = rawRoundTables.map(rt => ({
+    id: rt.id,
+    topic: rt.topic,
+    agentCount: rt.agentCount,
+    status: rt.status,
+    createdAt: rt.createdAt.toISOString(),
+    updatedAt: rt.updatedAt.toISOString(),
+    roundCount: rt._count?.rounds ?? 0,
+    agents: rt.agents.map(a => ({
+      id: a.id,
+      name: a.name,
+      order: a.order,
+    })),
+  }));
 
   return (
     <main className="min-h-screen p-8">

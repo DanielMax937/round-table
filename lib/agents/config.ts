@@ -1,6 +1,5 @@
-// Agent configuration for Claude Agent SDK
+// Agent configuration
 
-import { Agent } from '@anthropic-ai/claude-agent-sdk';
 import { AgentPersona } from '../types';
 
 /**

@@ -18,14 +18,19 @@ export default async function DiscussionPage({ params }: PageProps) {
     notFound();
   }
 
-  // Parse tool calls in messages
+  // Parse tool calls in messages (toolCalls is stored as JSON string in DB)
   const roundsWithParsedMessages = roundTable.rounds.map((round) => ({
     ...round,
-    messages: round.messages.map((msg) => ({
-      ...msg,
-      toolCalls: msg.toolCalls ? JSON.parse(msg.toolCalls) : undefined,
-    })),
-  }));
+    messages: round.messages.map((msg) => {
+      const rawToolCalls = (msg as any).toolCalls;
+      return {
+        ...msg,
+        toolCalls: rawToolCalls && typeof rawToolCalls === 'string'
+          ? JSON.parse(rawToolCalls)
+          : rawToolCalls || undefined,
+      };
+    }),
+  })) as any;
 
   return (
     <main className="min-h-screen p-8">

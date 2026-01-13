@@ -374,3 +374,26 @@ export const webSearchTool = {
   }
 };
 
+/**
+ * Execute web search and return formatted results
+ * Used by the direct Anthropic SDK integration
+ */
+export async function executeWebSearch(query: string): Promise<{
+  content: string;
+  results: WebSearchResult[];
+}> {
+  console.log(`🔍 Executing web search: "${query}"`);
+  try {
+    const results = await performWebSearch(query);
+    return {
+      content: formatSearchResults(results),
+      results,
+    };
+  } catch (error: any) {
+    console.error("Web search failed:", error);
+    return {
+      content: `Search failed: ${error.message}`,
+      results: [],
+    };
+  }
+}

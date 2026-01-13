@@ -45,7 +45,7 @@ export async function createRoundTable(
       agents: {
         create: personas.map((persona, index) => ({
           name: persona.name,
-          persona: persona.persona || persona.systemPrompt,
+          persona: (persona as any).persona || (persona as any).systemPrompt,
           order: index + 1,
         })),
       },
@@ -110,7 +110,7 @@ export async function getRoundTableWithDetails(id: string): Promise<RoundTableWi
     },
   });
 
-  return roundTable;
+  return roundTable as unknown as RoundTableWithDetails | null;
 }
 
 /**

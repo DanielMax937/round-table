@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { DEFAULT_PERSONAS } from '@/lib/personas';
 
 interface AgentPersona {
   name: string;
@@ -19,9 +20,35 @@ export default function RoundTableForm() {
   const [showPersonas, setShowPersonas] = useState(false);
   const [personas, setPersonas] = useState<AgentPersona[]>([]);
 
+  // Initialize personas when agent count changes or when showing personas
+  useEffect(() => {
+    if (showPersonas && personas.length !== agentCount) {
+      const defaultPersonas = DEFAULT_PERSONAS.slice(0, agentCount).map((p, i) => ({
+        name: p.name,
+        persona: p.systemPrompt,
+        order: i + 1,
+      }));
+      setPersonas(defaultPersonas);
+    }
+  }, [showPersonas, agentCount, personas.length]);
+
   const handleAgentCountChange = (count: number) => {
     setAgentCount(count);
-    setShowPersonas(false);
+    // Reset personas when count changes
+    if (showPersonas) {
+      const defaultPersonas = DEFAULT_PERSONAS.slice(0, count).map((p, i) => ({
+        name: p.name,
+        persona: p.systemPrompt,
+        order: i + 1,
+      }));
+      setPersonas(defaultPersonas);
+    }
+  };
+
+  const handlePersonaChange = (index: number, field: 'name' | 'persona', value: string) => {
+    setPersonas(prev => prev.map((p, i) =>
+      i === index ? { ...p, [field]: value } : p
+    ));
   };
 
   const handleCreate = async () => {
@@ -150,6 +177,40 @@ export default function RoundTableForm() {
           >
             {showPersonas ? '▼' : '▶'} Customize agent personas (optional)
           </button>
+
+          {/* Persona Customization UI */}
+          {showPersonas && (
+            <div className="mt-4 space-y-4">
+              {personas.map((persona, index) => (
+                <div key={index} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1">
+                      Agent {index + 1} Name
+                    </label>
+                    <input
+                      type="text"
+                      value={persona.name}
+                      onChange={(e) => handlePersonaChange(index, 'name', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Persona / System Prompt
+                    </label>
+                    <textarea
+                      value={persona.persona}
+                      onChange={(e) => handlePersonaChange(index, 'persona', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+                      rows={4}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Submit Button */}

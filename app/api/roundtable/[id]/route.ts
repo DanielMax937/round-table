@@ -28,13 +28,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
     }
 
-    // Parse tool calls in messages
+    // Parse tool calls in messages (toolCalls is stored as JSON string in DB)
     const roundsWithParsedMessages = roundTable.rounds.map((round) => ({
       ...round,
-      messages: round.messages.map((msg) => ({
-        ...msg,
-        toolCalls: msg.toolCalls ? JSON.parse(msg.toolCalls) : undefined,
-      })),
+      messages: round.messages.map((msg) => {
+        const rawToolCalls = (msg as any).toolCalls;
+        return {
+          ...msg,
+          toolCalls: rawToolCalls && typeof rawToolCalls === 'string'
+            ? JSON.parse(rawToolCalls)
+            : rawToolCalls || undefined,
+        };
+      }),
     }));
 
     return NextResponse.json({

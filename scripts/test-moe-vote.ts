@@ -81,7 +81,7 @@ async function testMoeVoteWorkflow() {
       console.log('   🏆 Winner:', finalJob.result.winner.agentName);
       console.log('   📊 Score:', finalJob.result.winner.averageScore.toFixed(2));
       console.log('\n   📈 All Scores:');
-      Object.entries(finalJob.result.scores).forEach(([id, score]) => {
+      Object.entries(finalJob.result.scores).forEach(([id, score]: [string, any]) => {
         console.log(`      ${score.agentName}: ${score.averageScore.toFixed(2)}/10`);
         console.log(`         Votes: ${score.votes.length}`);
       });

@@ -111,6 +111,7 @@ export default function DiscussionView({
       }
 
       let buffer = '';
+      let currentEventType = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -125,14 +126,15 @@ export default function DiscussionView({
 
         for (const line of lines) {
           if (line.startsWith('event:')) {
-            const eventType = line.substring(6).trim();
+            currentEventType = line.substring(6).trim();
             continue;
           }
 
           if (line.startsWith('data:')) {
             const data = JSON.parse(line.substring(5).trim());
-
-            handleSSEEvent(data);
+            // Use the event type from the event: line
+            handleSSEEvent(currentEventType, data);
+            currentEventType = ''; // Reset for next event
           }
         }
       }
@@ -148,14 +150,14 @@ export default function DiscussionView({
     }
   };
 
-  const handleSSEEvent = (data: any) => {
-    switch (data.eventType || data.type) {
+  const handleSSEEvent = (eventType: string, data: any) => {
+    switch (eventType) {
       case 'round-start':
         console.log('Round started:', data.roundNumber);
         break;
 
       case 'agent-start':
-        setCurrentAgent({ id: data.agentId, agentName: data.agentName });
+        setCurrentAgent({ id: data.agentId, name: data.agentName });
         setStreamingContent('');
         setStreamingToolCalls([]);
         break;
@@ -267,7 +269,7 @@ export default function DiscussionView({
           <>
             {streamingContent ? (
               <MessageBubble
-                agentName={currentAgent.agentName}
+                agentName={currentAgent.name}
                 content={streamingContent}
                 toolCalls={streamingToolCalls}
                 timestamp={new Date()}
@@ -275,7 +277,7 @@ export default function DiscussionView({
               />
             ) : (
               <AgentIndicator
-                agentName={currentAgent.agentName}
+                agentName={currentAgent.name}
                 isThinking
                 isSearching={isSearching}
               />

@@ -65,7 +65,6 @@ The project uses **direct Anthropic API calls**, not the Agent SDK:
 
 **Key Implementation Details:**
 
-- Each agent calls the Claude API directly using `@anthropic-ai/sdk`
 - Agents execute **sequentially** (not parallel) - Agent 1 → Agent 2 → Agent 3 → back to Agent 1
 - Full conversation context is passed to each agent (all previous rounds)
 - Web search tool is available to all agents

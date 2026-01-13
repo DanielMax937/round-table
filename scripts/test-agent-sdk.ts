@@ -30,7 +30,7 @@ async function main() {
                         }
                     }
                 ]
-            }
+            } as any
         });
 
         for await (const message of stream) {
@@ -45,7 +45,7 @@ async function main() {
             }
 
             // If we see tool use in output, log it
-            if (message.type === 'tool_use' || message.type === 'tool_result') { // Guessing types
+            if ((message as any).type === 'tool_use' || (message as any).type === 'tool_result') { // Guessing types
                 console.log('Tool Event:', message);
             }
         }

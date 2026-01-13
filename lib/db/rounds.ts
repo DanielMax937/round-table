@@ -1,8 +1,8 @@
 // Database operations for Round model
 
 import { prisma } from '../prisma';
-import { Round, RoundStatus } from '@prisma/client';
-import { RoundWithMessages } from '../types';
+import { Round } from '@prisma/client';
+import { RoundWithMessages, RoundStatus } from '../types';
 
 /**
  * Create a new round for a round table
@@ -48,7 +48,7 @@ export async function getRoundWithMessages(id: string): Promise<RoundWithMessage
     },
   });
 
-  return round;
+  return round as unknown as RoundWithMessages | null;
 }
 
 /**
@@ -87,7 +87,7 @@ export async function getRoundsWithMessages(roundTableId: string): Promise<Round
     },
   });
 
-  return rounds;
+  return rounds as unknown as RoundWithMessages[];
 }
 
 /**
@@ -128,7 +128,7 @@ export async function getLatestRoundWithMessages(
     },
   });
 
-  return round;
+  return round as unknown as RoundWithMessages | null;
 }
 
 /**
