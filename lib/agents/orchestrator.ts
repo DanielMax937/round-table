@@ -24,6 +24,7 @@ export interface OrchestratorEvent {
 export interface RoundExecutionOptions {
   onEvent?: (event: OrchestratorEvent) => void;
   apiKey: string;
+  language?: 'en' | 'zh';
 }
 
 export async function executeRound(
@@ -56,6 +57,7 @@ export async function executeRound(
       agent,
       context,
       options.apiKey,
+      options.language,
       (chunk) => {
         // Stream chunks to client
         options.onEvent?.({

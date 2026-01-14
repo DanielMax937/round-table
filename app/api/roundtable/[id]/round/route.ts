@@ -116,6 +116,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             previousMessages,
             {
               apiKey,
+              language: roundTable.language as 'en' | 'zh' || 'zh',
               onEvent: (event: OrchestratorEvent) => {
                 switch (event.type) {
                   case 'agent-start':

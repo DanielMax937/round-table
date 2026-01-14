@@ -59,6 +59,13 @@ export default function DiscussionView({
   const [currentAgent, setCurrentAgent] = useState<{ id: string; name: string } | null>(null);
   const [streamingContent, setStreamingContent] = useState<string>('');
   const [streamingToolCalls, setStreamingToolCalls] = useState<any[]>([]);
+  const [completedMessages, setCompletedMessages] = useState<Array<{
+    agentId: string;
+    agentName: string;
+    content: string;
+    toolCalls: any[];
+    citations: any[];
+  }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
   const [showBlogModal, setShowBlogModal] = useState(false);
@@ -72,13 +79,30 @@ export default function DiscussionView({
     scrollToBottom();
   }, [rounds, streamingContent]);
 
+  // Auto-poll for new messages every 5 seconds
+  useEffect(() => {
+    if (isStreaming) return; // Don't poll while streaming
+
+    const pollInterval = setInterval(() => {
+      refreshData();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isStreaming, roundTableId]);
+
   // Fetch round table data to update
   const refreshData = async () => {
     try {
       const response = await fetch(`/api/roundtable/${roundTableId}`);
       if (response.ok) {
         const data = await response.json();
-        setCurrentRound(data.roundTable.rounds.length);
+        const newRoundCount = data.roundTable.rounds.length;
+
+        // If there are new rounds, refresh the page to show new messages
+        if (newRoundCount > currentRound) {
+          setCurrentRound(newRoundCount);
+          router.refresh(); // This will trigger server-side re-fetch
+        }
       }
     } catch (err) {
       console.error('Failed to refresh data:', err);
@@ -93,6 +117,7 @@ export default function DiscussionView({
     setError('');
     setStreamingContent('');
     setStreamingToolCalls([]);
+    setCompletedMessages([]); // Reset completed messages for new round
 
     try {
       const response = await fetch(`/api/roundtable/${roundTableId}/round`, {
@@ -174,7 +199,18 @@ export default function DiscussionView({
         break;
 
       case 'agent-complete':
-        // Agent finished, reset for next agent
+        // Agent finished, save to completed messages
+        if (currentAgent && streamingContent) {
+          setCompletedMessages(prev => [...prev, {
+            agentId: currentAgent.id,
+            agentName: currentAgent.name,
+            content: streamingContent,
+            toolCalls: streamingToolCalls,
+            citations: [],
+          }]);
+        }
+        setStreamingContent('');
+        setStreamingToolCalls([]);
         break;
 
       case 'round-complete':
@@ -240,7 +276,7 @@ export default function DiscussionView({
             <span className="text-2xl">🎉</span>
             <div>
               <h3 className="font-semibold">Discussion Complete!</h3>
-              <p className="text-sm">All {maxRounds} rounds finished. You can generate a blog post or review the discussion.</p>
+              <p className="text-sm">All {currentRound} rounds finished. You can generate a blog post or review the discussion.</p>
             </div>
           </div>
         </div>

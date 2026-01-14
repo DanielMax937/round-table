@@ -8,7 +8,7 @@ import { executeDiscussionJob } from '@/lib/jobs/discussion-executor';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { topic, agentCount, maxRounds, selectedPersonaIds } = body;
+        const { topic, agentCount, maxRounds, selectedPersonaIds, language } = body;
 
         // Validation
         if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
@@ -39,13 +39,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create round table first
+        // Create round table with language
         const roundTable = await createRoundTable(
             topic,
             agentCount,
             undefined, // No custom personas
             maxRounds,
-            selectedPersonaIds
+            selectedPersonaIds,
+            language || 'zh'
         );
 
         // Create discussion job linked to round table

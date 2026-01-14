@@ -13,7 +13,7 @@ export default function Home() {
             </p>
           </div>
           <Link
-            href="/history"
+            href="/discussions"
             className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium"
           >
             View History

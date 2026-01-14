@@ -7,6 +7,7 @@ export interface CreatePersonaInput {
     name: string;
     description: string;
     systemPrompt: string;
+    descriptionZh?: string | null;
     isDefault?: boolean;
 }
 
@@ -14,6 +15,7 @@ export interface UpdatePersonaInput {
     name?: string;
     description?: string;
     systemPrompt?: string;
+    descriptionZh?: string | null;
     isDefault?: boolean;
 }
 
@@ -57,6 +59,7 @@ export async function createPersona(data: CreatePersonaInput): Promise<Persona> 
             name: data.name,
             description: data.description,
             systemPrompt: data.systemPrompt,
+            descriptionZh: data.descriptionZh,
             isDefault: data.isDefault ?? false,
         },
     });

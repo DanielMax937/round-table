@@ -150,15 +150,24 @@ export async function executeVoterEvaluation(
   voter: VotingAgent,
   discussionAgents: AgentModel[],
   votingContext: string,
-  apiKey: string
+  apiKey: string,
+  language?: 'en' | 'zh'
 ): Promise<Vote[]> {
-  try {
-    let textContent = '';
+  let textContent = '';
 
+  try {
     const stream = query({
       prompt: votingContext,
       options: {
-        systemPrompt: voter.persona,
+        maxThinkingTokens: 16000, // 或者更高，取决于你的需求
+        maxTurns: 10,
+        systemPrompt: (() => {
+          let prompt = voter.persona;
+          if (language === 'zh') {
+            prompt += '\n\nIMPORTANT: You MUST provide your justification in Chinese (中文). scores should still be numbers.';
+          }
+          return prompt;
+        })(),
         model: 'claude-sonnet-4-20250514',
         includePartialMessages: true,
         permissionMode: 'bypassPermissions',
@@ -192,7 +201,54 @@ export async function executeVoterEvaluation(
     }
 
     // Parse JSON response
-    const evaluation: VoterEvaluation = JSON.parse(textContent);
+    // Robust JSON extraction
+    let jsonText = textContent.trim();
+
+    // 1. Try to find markdown code block (allow missing closing fence)
+    const markdownMatch = jsonText.match(/```(?:json)?([\s\S]*?)(?:```|$)/);
+    if (markdownMatch && markdownMatch[1].trim().startsWith('{')) {
+      jsonText = markdownMatch[1].trim();
+    } else {
+      // 2. Fallback: try to find the outer-most JSON object
+      const firstBrace = jsonText.indexOf('{');
+      const lastBrace = jsonText.lastIndexOf('}');
+      if (firstBrace !== -1) {
+        // If lastBrace is missing or before firstBrace (impossible if -1 check passed, but safety), use end of string
+        const end = (lastBrace !== -1 && lastBrace > firstBrace) ? lastBrace + 1 : jsonText.length;
+        jsonText = jsonText.substring(firstBrace, end);
+      }
+    }
+
+    let evaluation: VoterEvaluation;
+    try {
+      evaluation = JSON.parse(jsonText);
+    } catch (e) {
+      // Attempt to repair truncated JSON
+      console.warn('JSON parse failed, attempting repair:', e);
+      try {
+        // simple repair: close string then close objects
+        // detecting unclosed string is hard with regex, assuming truncation at end
+        let repaired = jsonText;
+        // Count unescaped quotes to see if we are in a string
+        const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          repaired += '"';
+        }
+        // Close arrays and objects
+        const openBraces = (repaired.match(/{/g) || []).length;
+        const closeBraces = (repaired.match(/}/g) || []).length;
+        const openBrackets = (repaired.match(/\[/g) || []).length;
+        const closeBrackets = (repaired.match(/\]/g) || []).length;
+
+        repaired += ']'.repeat(Math.max(0, openBrackets - closeBrackets));
+        repaired += '}'.repeat(Math.max(0, openBraces - closeBraces));
+
+        evaluation = JSON.parse(repaired);
+      } catch (repairError) {
+        console.error('JSON repair failed:', repairError);
+        throw e; // Throw original error
+      }
+    }
 
     // Validate evaluation structure
     if (!evaluation.evaluations || !Array.isArray(evaluation.evaluations)) {
@@ -205,12 +261,14 @@ export async function executeVoterEvaluation(
       voterId: voter.id,
       voterName: voter.name,
       score: e.score,
-      justification: e.justification,
+      justification: e.justification || 'Truncated justification',
     }));
 
     return votes;
   } catch (error) {
-    console.error(`Voting agent ${voter.name} failed:`, error);
+    console.error(`❌ Voting agent ${voter.name} failed:`);
+    console.error('Error:', error);
+    console.error('Raw text content received:', textContent?.substring(0, 500));
 
     // Fallback: return neutral scores
     return discussionAgents.map((agent) => ({
@@ -231,7 +289,8 @@ export async function executeVoting(
   allMessages: (Message & { agent: AgentModel })[],
   topic: string,
   includeDiscussionAgents: boolean,
-  apiKey: string
+  apiKey: string,
+  language?: 'en' | 'zh'
 ): Promise<VotingResult> {
   // Guard against empty discussion agents
   if (discussionAgents.length === 0) {
@@ -247,7 +306,25 @@ export async function executeVoting(
     const discussionVoters: VotingAgent[] = discussionAgents.map((agent) => ({
       id: `discussion-${agent.id}`,
       name: agent.name,
-      persona: `${agent.persona}\n\nNow evaluate all discussion agents (including yourself if applicable) based on their contributions. You cannot vote for yourself.`,
+      persona: `${agent.persona}
+
+Now evaluate all discussion agents (including yourself if applicable) based on their contributions. You cannot vote for yourself - give yourself a score of 0.
+
+For each agent, provide:
+1. Score (1-10, where 10 is exceptional, 0 for yourself)
+2. Detailed justification (2-3 sentences)
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "evaluations": [
+    {
+      "agentId": "agent-id-here",
+      "agentName": "Agent Name Here",
+      "score": 8,
+      "justification": "Detailed explanation of the score."
+    }
+  ]
+}`,
     }));
     allVoters = [...votingAgents, ...discussionVoters];
   }
@@ -267,7 +344,8 @@ export async function executeVoting(
       voter,
       discussionAgents,
       votingContext,
-      apiKey
+      apiKey,
+      language
     );
 
     // Filter out self-votes if discussion agents are voting
@@ -285,8 +363,22 @@ export async function executeVoting(
   // Determine winner
   const winner = determineWinner(aggregatedScores);
 
+  // Determine YES/NO decision based on winner's position
+  // We'll analyze the winner's messages to determine their stance
+  const winnerMessages = allMessages.filter((m) => m.agentId === winner.agentId);
+  const { stance: winnerStance, thought: decisionThought } = await analyzeStanceFromMessages(winnerMessages, topic, apiKey);
+
+  // Confidence is based on how much higher the winner's score is
+  const scores = Object.values(aggregatedScores);
+  const avgScore = scores.reduce((sum, s) => sum + s.averageScore, 0) / scores.length;
+  const scoreRange = Math.max(...scores.map(s => s.averageScore)) - Math.min(...scores.map(s => s.averageScore));
+  const confidence = Math.min(100, Math.round(((winner.averageScore - avgScore) / scoreRange) * 100 + 50));
+
   // Build result
   return {
+    finalDecision: winnerStance,
+    decisionThought,
+    confidence,
     winner,
     scores: aggregatedScores,
     discussionSummary: {
@@ -298,4 +390,134 @@ export async function executeVoting(
       toolCallsUsed: allMessages.filter((m) => m.toolCalls).length,
     },
   };
+}
+
+/**
+ * Analyze agent's stance from their messages using LLM
+ */
+async function analyzeStanceFromMessages(
+  messages: (Message & { agent: AgentModel })[],
+  topic: string,
+  apiKey: string
+): Promise<{ stance: 'yes' | 'no'; thought: string }> {
+  const combinedMessages = messages.map(m => m.content).join('\n\n');
+
+  // Step 1: Summarize the winner's view
+  const summaryPrompt = `Summarize the key arguments and final position of the agent based on the following messages regarding the topic "${topic}".
+  
+Messages:
+${combinedMessages}
+
+Provide a concise summary of their stance.`;
+
+  let summary = '';
+  try {
+    const stream = query({
+      prompt: summaryPrompt,
+      options: {
+        systemPrompt: 'You are a helpful summarizer.',
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
+    });
+
+    for await (const message of stream) {
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          summary += event.delta.text;
+        }
+      }
+      if (message.type === 'result') {
+        const result = (message as any).result;
+        if (result.content) {
+          for (const block of result.content) {
+            if (block.type === 'text' && !summary) {
+              summary += block.text;
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to summarize stance:', error);
+    return { stance: 'yes', thought: 'Analysis failed during summary.' };
+  }
+
+  // Step 2: Determine YES/NO based on question and summary
+  const decisionPrompt = `Question: "${topic}"
+
+Agent's View Summary:
+${summary}
+
+Based on this summary, is the agent's answer to the question "YES" or "NO"?
+
+Please provide:
+1. A brief thought process (1-2 sentences) explaining why.
+2. The final decision (YES or NO).
+
+Response format:
+Thought: [Your reasoning]
+Decision: [YES/NO]`;
+
+  try {
+    const stream = query({
+      prompt: decisionPrompt,
+      options: {
+        systemPrompt: 'You are a decision analyzer. Output in the requested format.',
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
+    });
+
+    let response = '';
+    for await (const message of stream) {
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          response += event.delta.text;
+        }
+      }
+      if (message.type === 'result') {
+        const result = (message as any).result;
+        if (result.content) {
+          for (const block of result.content) {
+            if (block.type === 'text' && !response) {
+              response += block.text;
+            }
+          }
+        }
+      }
+    }
+
+    const fullResponse = response.trim();
+    console.log(`2-Step Stance Analysis:`, { summary: summary.substring(0, 50) + '...', fullResponse });
+
+    // Parse Thought and Decision using robust regex
+    // Capture everything between "Thought:" and "Decision:" (or end), handling newlines
+    const thoughtMatch = fullResponse.match(/Thought:\s*([\s\S]+?)(?:\n\s*Decision:|$)/i);
+    const decisionMatch = fullResponse.match(/Decision:\s*(YES|NO)/i);
+
+    let thought = thoughtMatch ? thoughtMatch[1].trim() : 'No reasoning provided.';
+    const stanceStr = decisionMatch ? decisionMatch[1].toLowerCase() : 'yes';
+
+    // Fallback if thought is empty and response is short, use whole response
+    if (thought === 'No reasoning provided.' && !fullResponse.includes('Thought:') && fullResponse.length < 500) {
+      thought = fullResponse;
+    }
+
+    return {
+      stance: stanceStr === 'no' ? 'no' : 'yes',
+      thought
+    };
+  } catch (error) {
+    console.error('Failed to analyze decision:', error);
+    return { stance: 'yes', thought: 'Analysis failed.' };
+  }
 }

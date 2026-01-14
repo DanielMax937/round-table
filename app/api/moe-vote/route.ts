@@ -7,6 +7,7 @@ import {
   CreateMoeVoteRequest,
   CreateMoeVoteResponse,
 } from '@/lib/moe-vote/types';
+import { getDefaultPersonas } from '@/lib/personas';
 
 export async function POST(request: NextRequest) {
   let roundTable;
@@ -26,11 +27,27 @@ export async function POST(request: NextRequest) {
     const {
       question,
       includeDiscussionAgentsInVoting = false,
-      agentCount = 3,
+      agentCount = 2,
+      language = 'zh',
+      maxRounds,
     } = body;
 
+    // Prepare personas with decision-forcing instruction
+    const defaultPersonas = getDefaultPersonas(agentCount);
+    const customPersonas = defaultPersonas.map((p) => ({
+      name: p.name,
+      persona: `${p.systemPrompt}\n\nIMPORTANT: You must clearly state your position as "YES" or "NO" at the beginning of your discussion. Then provide your arguments based on this chosen position. This is to help reach a final decision.`,
+    }));
+
     // Create ephemeral round table (this also creates agents)
-    roundTable = await createRoundTable(question, agentCount);
+    roundTable = await createRoundTable(
+      question,
+      agentCount,
+      customPersonas,
+      maxRounds || MOE_VOTE_CONFIG.roundCount,
+      undefined,
+      language
+    );
 
     // Create MoE vote job
     const job = await createMoeVoteJob({
@@ -46,9 +63,9 @@ export async function POST(request: NextRequest) {
       // Error already handled in executeJobInBackground
     });
 
-    // Estimate completion time
+    // Estimate completion time based on actual maxRounds
     const estimatedTime =
-      agentCount * MOE_VOTE_CONFIG.roundCount * 30000 + // Discussion
+      agentCount * roundTable.maxRounds * 30000 + // Discussion
       3 * agentCount * 20000; // Voting
 
     const response: CreateMoeVoteResponse = {
@@ -71,6 +88,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to create job',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { getAllMoeVoteJobs } = await import('@/lib/db/moe-vote-jobs');
+    const jobs = await getAllMoeVoteJobs();
+
+    return NextResponse.json({
+      jobs: jobs.map(job => ({
+        jobId: job.id,
+        status: job.status,
+        question: job.question,
+        agentCount: job.agentCount,
+        createdAt: job.createdAt,
+        completedAt: job.completedAt,
+        currentRound: job.currentRound,
+        currentPhase: job.currentPhase,
+      })),
+      total: jobs.length,
+    });
+  } catch (error) {
+    console.error('Error fetching vote jobs:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch vote jobs',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }

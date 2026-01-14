@@ -11,13 +11,14 @@ datasource db {
 }
 
 model Persona {
-  id           String   @id @default(cuid())
-  name         String
-  description  String
-  systemPrompt String
-  isDefault    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  description   String
+  systemPrompt  String
+  descriptionZh String?  // Optional Chinese version of description
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   agents Agent[]
 
@@ -30,6 +31,7 @@ model RoundTable {
   agentCount        Int
   maxRounds         Int      @default(5)
   status            String   @default("active") // "active" | "paused" | "archived"
+  language          String   @default("zh") // "en" | "zh"
   selectedAgentIds  String?  // JSON array of selected persona IDs
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

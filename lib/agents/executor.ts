@@ -117,6 +117,7 @@ export async function executeAgentTurn(
   agent: AgentModel,
   context: AgentContext,
   apiKey: string,
+  language?: 'en' | 'zh',
   onChunk?: (chunk: string) => void,
   onToolCall?: (toolCall: ToolCall) => void
 ): Promise<{ content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> {
@@ -170,10 +171,18 @@ export async function executeAgentTurn(
   });
 
   try {
+    // Build system prompt with language instruction
+    let systemPrompt = agent.persona;
+    if (language === 'zh') {
+      systemPrompt += '\n\nIMPORTANT: You MUST respond in Chinese (中文). All your responses should be in Chinese, including analysis, arguments, and conclusions.';
+    } else if (language === 'en') {
+      systemPrompt += '\n\nIMPORTANT: You MUST respond in English. All your responses should be in English.';
+    }
+
     const stream = query({
       prompt: promptContent,
       options: {
-        systemPrompt: agent.persona,
+        systemPrompt,
         model: 'claude-sonnet-4-20250514',
         includePartialMessages: true,
         mcpServers: {

@@ -12,7 +12,8 @@ export async function createRoundTable(
   agentCount: number,
   customPersonas?: Array<{ name: string; persona: string }>,
   maxRounds: number = 5,
-  selectedPersonaIds?: string[]
+  selectedPersonaIds?: string[],
+  language: 'en' | 'zh' = 'zh'
 ): Promise<RoundTableWithAgents> {
   // Validate agent count
   if (agentCount < 2 || agentCount > 6) {
@@ -44,11 +45,7 @@ export async function createRoundTable(
       throw new Error('Some selected personas were not found');
     }
 
-    // Map personas to agents in the order they were selected
-    agentsData = selectedPersonaIds.map((personaId, index) => {
-      const persona = dbPersonas.find(p => p.id === personaId);
-      if (!persona) throw new Error(`Persona ${personaId} not found`);
-
+    agentsData = dbPersonas.map((persona, index) => {
       return {
         name: persona.name,
         persona: persona.systemPrompt,
@@ -87,6 +84,7 @@ export async function createRoundTable(
       topic: topic.trim(),
       agentCount,
       maxRounds,
+      language,
       status: 'active',
       selectedAgentIds: selectedPersonaIds ? JSON.stringify(selectedPersonaIds) : null,
       agents: {

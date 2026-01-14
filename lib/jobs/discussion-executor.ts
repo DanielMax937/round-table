@@ -54,6 +54,12 @@ export async function executeDiscussionJob(jobId: string): Promise<void> {
         for (let roundNum = 1; roundNum <= job.maxRounds; roundNum++) {
             console.log(`Job ${jobId}: Starting round ${roundNum}/${job.maxRounds}`);
 
+            // Check if round table has been paused or archived
+            const currentRoundTable = await getRoundTable(job.roundTableId);
+            if (!currentRoundTable || currentRoundTable.status !== 'active') {
+                throw new Error(`Discussion has been ${currentRoundTable?.status || 'deleted'}. Stopping execution.`);
+            }
+
             await updateDiscussionJobProgress(jobId, roundNum, 'discussion');
 
             // Create round
@@ -71,6 +77,7 @@ export async function executeDiscussionJob(jobId: string): Promise<void> {
                 previousMessages,
                 {
                     apiKey,
+                    language: roundTable.language as 'en' | 'zh' || 'zh',
                     onEvent: (event) => {
                         // Log progress but don't await to avoid blocking
                         if (event.type === 'agent-start') {

@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
             name: body.name,
             description: body.description,
             systemPrompt: body.systemPrompt,
+            descriptionZh: body.descriptionZh,
             isDefault: body.isDefault ?? false,
         };
 

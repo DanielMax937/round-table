@@ -44,7 +44,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (job.status === 'running' && job.currentRound !== null && job.currentPhase) {
       response.progress = {
         currentRound: job.currentRound,
-        totalRounds: MOE_VOTE_CONFIG.roundCount,
+        totalRounds: job.roundTable.maxRounds,
         phase: job.currentPhase as MoeVoteJobPhase,
       };
     }

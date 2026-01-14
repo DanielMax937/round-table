@@ -25,6 +25,9 @@ export interface AgentScore {
  * Final voting result returned to client
  */
 export interface VotingResult {
+  finalDecision: 'yes' | 'no';  // Answer to the yes/no question
+  decisionThought?: string; // Reasoning for the decision
+  confidence: number;  // 0-100 confidence score
   winner: {
     agentId: string;
     agentName: string;
@@ -66,6 +69,8 @@ export interface CreateMoeVoteRequest {
   question: string;
   includeDiscussionAgentsInVoting?: boolean;
   agentCount?: number;
+  language?: 'en' | 'zh';
+  maxRounds?: number;
 }
 
 /**

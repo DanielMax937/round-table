@@ -37,7 +37,7 @@ export default async function DiscussionPage({ params }: PageProps) {
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <Link
-            href="/history"
+            href="/discussions"
             className="text-blue-500 hover:text-blue-600 text-sm font-medium"
           >
             ← Back to History

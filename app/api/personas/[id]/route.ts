@@ -47,6 +47,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (body.name !== undefined) updateData.name = body.name;
         if (body.description !== undefined) updateData.description = body.description;
         if (body.systemPrompt !== undefined) updateData.systemPrompt = body.systemPrompt;
+        if (body.descriptionZh !== undefined) updateData.descriptionZh = body.descriptionZh;
         if (body.isDefault !== undefined) updateData.isDefault = body.isDefault;
 
         const persona = await updatePersona(id, updateData);

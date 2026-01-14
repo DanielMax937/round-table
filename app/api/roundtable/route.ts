@@ -7,7 +7,7 @@ import { getDefaultPersonas } from '@/lib/personas';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, agentCount, customPersonas, maxRounds, selectedPersonaIds } = body;
+    const { topic, agentCount, customPersonas, maxRounds, selectedPersonaIds, language } = body;
 
     // Validate input
     if (!topic || typeof topic !== 'string') {
@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
       agentCount,
       customPersonas,
       maxRounds,
-      selectedPersonaIds
+      selectedPersonaIds,
+      language || 'zh'
     );
 
     return NextResponse.json(

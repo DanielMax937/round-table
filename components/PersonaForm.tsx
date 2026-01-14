@@ -8,6 +8,7 @@ interface Persona {
     name: string;
     description: string;
     systemPrompt: string;
+    descriptionZh?: string | null;
     isDefault: boolean;
     createdAt: Date;
 }
@@ -22,6 +23,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
     const [name, setName] = useState(persona?.name || '');
     const [description, setDescription] = useState(persona?.description || '');
     const [systemPrompt, setSystemPrompt] = useState(persona?.systemPrompt || '');
+    const [descriptionZh, setDescriptionZh] = useState(persona?.descriptionZh || '');
     const [isDefault, setIsDefault] = useState(persona?.isDefault || false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
@@ -42,6 +44,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     name,
                     description,
                     systemPrompt,
+                    descriptionZh: descriptionZh || null,
                     isDefault,
                 }),
             });
@@ -111,6 +114,23 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 font-mono text-sm"
                     placeholder="You are [role]. Your role is to:&#10;- [Responsibility 1]&#10;- [Responsibility 2]"
                 />
+            </div>
+
+            <div>
+                <label htmlFor="descriptionZh" className="block text-sm font-medium mb-2">
+                    Chinese Description (Optional)
+                </label>
+                <input
+                    type="text"
+                    id="descriptionZh"
+                    value={descriptionZh}
+                    onChange={(e) => setDescriptionZh(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+                    placeholder="简要描述此角色的职责"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    If provided, this will be shown when browsing personas
+                </p>
             </div>
 
             <div className="flex items-center">

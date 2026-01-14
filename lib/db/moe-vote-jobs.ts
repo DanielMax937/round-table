@@ -87,3 +87,10 @@ export async function deleteMoeVoteJob(id: string): Promise<void> {
     where: { id },
   });
 }
+
+export async function getAllMoeVoteJobs(): Promise<MoeVoteJob[]> {
+  return await prisma.moeVoteJob.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { roundTable: true },
+  });
+}

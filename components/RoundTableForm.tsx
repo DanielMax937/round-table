@@ -14,8 +14,9 @@ interface Persona {
 export default function RoundTableForm() {
   const router = useRouter();
   const [topic, setTopic] = useState('');
-  const [agentCount, setAgentCount] = useState(3);
-  const [maxRounds, setMaxRounds] = useState(5);
+  const [agentCount, setAgentCount] = useState(2);
+  const [maxRounds, setMaxRounds] = useState(2);
+  const [language, setLanguage] = useState<'en' | 'zh'>('zh');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -110,6 +111,7 @@ export default function RoundTableForm() {
           agentCount,
           maxRounds,
           selectedPersonaIds,
+          language,
         }),
       });
 
@@ -182,8 +184,8 @@ export default function RoundTableForm() {
                 type="button"
                 onClick={() => handleAgentCountChange(count)}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${agentCount === count
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 disabled={isSubmitting}
               >
@@ -225,6 +227,40 @@ export default function RoundTableForm() {
           )}
         </div>
 
+        {/* Language Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">
+            Discussion Language
+          </label>
+          <div className="flex gap-4">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="radio"
+                value="zh"
+                checked={language === 'zh'}
+                onChange={(e) => setLanguage(e.target.value as 'zh')}
+                className="mr-2"
+                disabled={isSubmitting}
+              />
+              <span className="text-sm">中文 (Chinese)</span>
+            </label>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="radio"
+                value="en"
+                checked={language === 'en'}
+                onChange={(e) => setLanguage(e.target.value as 'en')}
+                className="mr-2"
+                disabled={isSubmitting}
+              />
+              <span className="text-sm">English</span>
+            </label>
+          </div>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Agents will respond in the selected language
+          </p>
+        </div>
+
         {/* Max Rounds Input */}
         <div className="mb-6">
           <label htmlFor="maxRounds" className="block text-sm font-medium mb-2">
@@ -250,8 +286,8 @@ export default function RoundTableForm() {
           onClick={handleCreate}
           disabled={isSubmitting || !topic.trim() || selectedPersonaIds.length !== agentCount}
           className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${isSubmitting || !topic.trim() || selectedPersonaIds.length !== agentCount
-              ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600'
+            ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
+            : 'bg-blue-500 hover:bg-blue-600'
             }`}
         >
           {isSubmitting ? 'Creating...' : 'Start Discussion'}

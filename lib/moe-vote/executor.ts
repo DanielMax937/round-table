@@ -47,10 +47,16 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
       throw new Error(`Round table ${job.roundTableId} not found`);
     }
 
-    // Execute 10 rounds
+    // Execute rounds based on round table's maxRounds
     await updateMoeVoteJobProgress(jobId, 0, 'discussion');
 
-    for (let roundNum = 1; roundNum <= MOE_VOTE_CONFIG.roundCount; roundNum++) {
+    for (let roundNum = 1; roundNum <= roundTable.maxRounds; roundNum++) {
+      // Check if round table has been paused or archived
+      const currentRoundTable = await getRoundTableWithDetails(job.roundTableId);
+      if (!currentRoundTable || currentRoundTable.status !== 'active') {
+        throw new Error(`Discussion has been ${currentRoundTable?.status || 'deleted'}. Stopping execution.`);
+      }
+
       await updateMoeVoteJobProgress(jobId, roundNum, 'discussion');
 
       // Create round
@@ -75,7 +81,8 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
           .filter((m): m is NonNullable<typeof m> => m !== null),
         {
           apiKey,
-          onEvent: () => {}, // No event handling in background
+          onEvent: () => { }, // No event handling in background
+          language: roundTable.language as 'en' | 'zh'
         }
       );
 
@@ -91,7 +98,7 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
     // Execute voting phase
     await updateMoeVoteJobProgress(
       jobId,
-      MOE_VOTE_CONFIG.roundCount,
+      roundTable.maxRounds,
       'voting'
     );
 
@@ -107,13 +114,14 @@ export async function executeJobInBackground(jobId: string): Promise<void> {
         .filter((m): m is NonNullable<typeof m> => m !== null),
       job.question,
       job.includeDiscussionAgentsInVoting,
-      apiKey
+      apiKey,
+      roundTable.language as 'en' | 'zh'
     );
 
     // Aggregating phase
     await updateMoeVoteJobProgress(
       jobId,
-      MOE_VOTE_CONFIG.roundCount,
+      roundTable.maxRounds,
       'aggregating'
     );
 
