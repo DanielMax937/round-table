@@ -4,9 +4,42 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { SynthesisEvent, SynthesisInput } from './types';
 
 /**
- * Build synthesis prompt from discussion messages
+ * Collect all unique citations from messages
  */
-function buildSynthesisPrompt(input: SynthesisInput): string {
+function collectCitations(input: SynthesisInput): Map<string, string> {
+  const allCitations = new Map<string, string>(); // url -> title
+  for (const msg of input.messages) {
+    if (msg.citations) {
+      for (const citation of msg.citations) {
+        if (!allCitations.has(citation.url)) {
+          allCitations.set(citation.url, citation.title);
+        }
+      }
+    }
+  }
+  return allCitations;
+}
+
+/**
+ * Format references section in specified language
+ */
+function formatReferences(citations: Map<string, string>, language: 'en' | 'zh'): string {
+  if (citations.size === 0) return '';
+
+  const header = language === 'zh' ? '\n\n---\n\n## 参考资料\n\n' : '\n\n---\n\n## References\n\n';
+  let refs = header;
+  let idx = 1;
+  for (const [url, title] of citations) {
+    refs += `${idx}. [${title}](${url})\n`;
+    idx++;
+  }
+  return refs;
+}
+
+/**
+ * Build synthesis prompt from discussion messages for specified language
+ */
+function buildSynthesisPrompt(input: SynthesisInput, language: 'en' | 'zh'): string {
   // Group messages by round
   const roundGroups = new Map<number, Array<{ agentName: string; content: string }>>();
 
@@ -40,14 +73,34 @@ function buildSynthesisPrompt(input: SynthesisInput): string {
   prompt += `4. Write a conclusion that synthesizes the main takeaways\n`;
   prompt += `5. Use an engaging, accessible writing style (not academic)\n`;
   prompt += `6. Target length: 1000-1500 words\n`;
-  prompt += `7. Format in clean markdown with proper headers and structure\n\n`;
+  prompt += `7. Format in clean markdown with proper headers and structure\n`;
+  prompt += `8. If relevant sources were consulted during the discussion (listed below), you may reference them naturally in the blog post\n\n`;
+
+  // Language-specific instructions
+  if (language === 'zh') {
+    prompt += `IMPORTANT: Write the ENTIRE blog post in Chinese (中文). Use natural, fluent Chinese that reads well for native speakers. All headings, content, and text should be in Chinese.\n\n`;
+  } else {
+    prompt += `IMPORTANT: Write the ENTIRE blog post in English. Use clear, natural English throughout.\n\n`;
+  }
+
   prompt += `Do not mention that this came from AI agents - write as if you're a single author synthesizing these perspectives.`;
+
+  // Collect and add sources list to prompt if citations exist
+  const allCitations = collectCitations(input);
+  if (allCitations.size > 0) {
+    prompt += `\n\n### Sources Consulted During Discussion:\n`;
+    let idx = 1;
+    for (const [url, title] of allCitations) {
+      prompt += `[${idx}] ${title} - ${url}\n`;
+      idx++;
+    }
+  }
 
   return prompt;
 }
 
 /**
- * Synthesize blog post from discussion with streaming
+ * Synthesize blog post from discussion with streaming - generates both English and Chinese versions
  */
 export async function* synthesizeBlogPost(
   input: SynthesisInput,
@@ -87,17 +140,20 @@ export async function* synthesizeBlogPost(
     return;
   }
 
+  const citations = collectCitations(input);
+
+  // Generate English version
   yield {
     type: 'synthesis-start',
-    data: { timestamp: new Date() }
+    data: { language: 'en', timestamp: new Date() }
   };
 
   try {
-    const prompt = buildSynthesisPrompt(input);
-    let fullContent = '';
+    const englishPrompt = buildSynthesisPrompt(input, 'en');
+    let englishContent = '';
 
-    const stream = query({
-      prompt,
+    const englishStream = query({
+      prompt: englishPrompt,
       options: {
         model: 'claude-sonnet-4-20250514',
         includePartialMessages: true,
@@ -107,32 +163,31 @@ export async function* synthesizeBlogPost(
       },
     });
 
-    for await (const message of stream) {
-      // Handle streaming events for text chunks
+    for await (const message of englishStream) {
       if (message.type === 'stream_event') {
         const event = (message as any).event;
         if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
           const chunk = event.delta.text;
-          fullContent += chunk;
+          englishContent += chunk;
 
           yield {
             type: 'chunk',
             data: {
               chunk,
+              language: 'en',
               timestamp: new Date()
             }
           };
         }
       }
 
-      // Handle final result message
       if (message.type === 'result') {
-        if (!fullContent && (message as any).result) {
+        if (!englishContent && (message as any).result) {
           const result = (message as any).result;
           if (result.content) {
             for (const block of result.content) {
               if (block.type === 'text') {
-                fullContent += block.text;
+                englishContent += block.text;
               }
             }
           }
@@ -140,10 +195,26 @@ export async function* synthesizeBlogPost(
       }
     }
 
+    // Append references to English version
+    if (citations.size > 0) {
+      const refs = formatReferences(citations, 'en');
+      englishContent += refs;
+
+      yield {
+        type: 'chunk',
+        data: {
+          chunk: refs,
+          language: 'en',
+          timestamp: new Date()
+        }
+      };
+    }
+
     yield {
-      type: 'synthesis-complete',
+      type: 'language-complete',
       data: {
-        fullContent,
+        fullContent: englishContent,
+        language: 'en',
         timestamp: new Date()
       }
     };
@@ -152,9 +223,103 @@ export async function* synthesizeBlogPost(
     yield {
       type: 'error',
       data: {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: `English generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       }
     };
+    return;
   }
+
+  // Generate Chinese version
+  yield {
+    type: 'synthesis-start',
+    data: { language: 'zh', timestamp: new Date() }
+  };
+
+  try {
+    const chinesePrompt = buildSynthesisPrompt(input, 'zh');
+    let chineseContent = '';
+
+    const chineseStream = query({
+      prompt: chinesePrompt,
+      options: {
+        model: 'claude-sonnet-4-20250514',
+        includePartialMessages: true,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        persistSession: false,
+      },
+    });
+
+    for await (const message of chineseStream) {
+      if (message.type === 'stream_event') {
+        const event = (message as any).event;
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          const chunk = event.delta.text;
+          chineseContent += chunk;
+
+          yield {
+            type: 'chunk',
+            data: {
+              chunk,
+              language: 'zh',
+              timestamp: new Date()
+            }
+          };
+        }
+      }
+
+      if (message.type === 'result') {
+        if (!chineseContent && (message as any).result) {
+          const result = (message as any).result;
+          if (result.content) {
+            for (const block of result.content) {
+              if (block.type === 'text') {
+                chineseContent += block.text;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Append references to Chinese version
+    if (citations.size > 0) {
+      const refs = formatReferences(citations, 'zh');
+      chineseContent += refs;
+
+      yield {
+        type: 'chunk',
+        data: {
+          chunk: refs,
+          language: 'zh',
+          timestamp: new Date()
+        }
+      };
+    }
+
+    yield {
+      type: 'language-complete',
+      data: {
+        fullContent: chineseContent,
+        language: 'zh',
+        timestamp: new Date()
+      }
+    };
+
+  } catch (error) {
+    yield {
+      type: 'error',
+      data: {
+        error: `Chinese generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date()
+      }
+    };
+    return;
+  }
+
+  yield {
+    type: 'synthesis-complete',
+    data: { timestamp: new Date() }
+  };
 }

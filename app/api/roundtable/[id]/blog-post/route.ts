@@ -49,11 +49,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Format messages for synthesis
     const synthesisInput = {
       topic: roundTable.topic,
-      messages: messages.map(msg => ({
-        agentName: agentMap.get(msg.agentId) || 'Unknown',
-        content: msg.content,
-        roundNumber: msg.round.roundNumber
-      }))
+      messages: messages.map(msg => {
+        // Parse citations from JSON string
+        let citations: Array<{ url: string; title: string }> = [];
+        try {
+          citations = msg.citations ? JSON.parse(msg.citations as string) : [];
+        } catch (e) {
+          console.error('Failed to parse citations for message', msg.id, e);
+        }
+
+        return {
+          agentName: agentMap.get(msg.agentId) || 'Unknown',
+          content: msg.content,
+          roundNumber: msg.round.roundNumber,
+          citations: citations,
+        };
+      })
     };
 
     // Set up SSE stream

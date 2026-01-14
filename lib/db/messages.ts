@@ -10,7 +10,8 @@ export async function createMessage(
   roundId: string,
   agentId: string,
   content: string,
-  toolCalls?: ToolCall[]
+  toolCalls?: ToolCall[],
+  citations?: Array<{ url: string; title: string; usedInContext?: boolean }>
 ): Promise<Message> {
   const message = await prisma.message.create({
     data: {
@@ -18,6 +19,7 @@ export async function createMessage(
       agentId,
       content,
       toolCalls: toolCalls ? JSON.stringify(toolCalls) : null,
+      citations: citations ? JSON.stringify(citations) : null,
     },
   });
 

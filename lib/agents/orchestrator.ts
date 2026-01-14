@@ -26,17 +26,14 @@ export interface RoundExecutionOptions {
   apiKey: string;
 }
 
-/**
- * Execute a complete round with all agents
- */
 export async function executeRound(
   agents: AgentModel[],
   topic: string,
   roundNumber: number,
   previousMessages: (Message & { agent: AgentModel })[],
   options: RoundExecutionOptions
-): Promise<{ messages: Array<{ agentId: string; content: string; toolCalls: ToolCall[] }> }> {
-  const results: Array<{ agentId: string; content: string; toolCalls: ToolCall[] }> = [];
+): Promise<{ messages: Array<{ agentId: string; content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> }> {
+  const results: Array<{ agentId: string; content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> = [];
   const currentRoundMessages: (Message & { agent: AgentModel })[] = [];
 
   // Execute each agent in sequence
@@ -55,7 +52,7 @@ export async function executeRound(
     const context = buildAgentContext(topic, roundNumber, previousMessages, currentRoundMessages);
 
     // Execute agent turn
-    const { content, toolCalls } = await executeAgentTurn(
+    const { content, toolCalls, citations } = await executeAgentTurn(
       agent,
       context,
       options.apiKey,
@@ -90,6 +87,7 @@ export async function executeRound(
       agentId: agent.id,
       content,
       toolCalls,
+      citations,
     });
 
     // Create a temporary message object for context building

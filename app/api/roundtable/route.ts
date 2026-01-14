@@ -7,7 +7,7 @@ import { getDefaultPersonas } from '@/lib/personas';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, agentCount, customPersonas, maxRounds } = body;
+    const { topic, agentCount, customPersonas, maxRounds, selectedPersonaIds } = body;
 
     // Validate input
     if (!topic || typeof topic !== 'string') {
@@ -21,14 +21,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle both old customPersonas and new selectedPersonaIds
     if (customPersonas && !Array.isArray(customPersonas)) {
       return NextResponse.json({ error: 'Custom personas must be an array' }, { status: 400 });
+    }
+
+    if (selectedPersonaIds && !Array.isArray(selectedPersonaIds)) {
+      return NextResponse.json({ error: 'Selected persona IDs must be an array' }, { status: 400 });
     }
 
     // Validate custom personas if provided
     if (customPersonas && customPersonas.length !== agentCount) {
       return NextResponse.json(
         { error: `Expected ${agentCount} personas, got ${customPersonas.length}` },
+        { status: 400 }
+      );
+    }
+
+    if (selectedPersonaIds && selectedPersonaIds.length !== agentCount) {
+      return NextResponse.json(
+        { error: `Expected ${agentCount} persona IDs, got ${selectedPersonaIds.length}` },
         { status: 400 }
       );
     }
@@ -43,8 +55,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create round table
-    const roundTable = await createRoundTable(topic, agentCount, customPersonas, maxRounds);
+    // Create round table with selected personas
+    const roundTable = await createRoundTable(
+      topic,
+      agentCount,
+      customPersonas,
+      maxRounds,
+      selectedPersonaIds
+    );
 
     return NextResponse.json(
       {

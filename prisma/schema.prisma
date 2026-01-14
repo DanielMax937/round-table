@@ -10,18 +10,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model RoundTable {
-  id         String   @id @default(cuid())
-  topic      String
-  agentCount Int
-  maxRounds  Int      @default(5)
-  status     String   @default("active") // "active" | "paused" | "archived"
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model Persona {
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  systemPrompt String
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   agents Agent[]
-  rounds Round[]
-  moeVoteJob  MoeVoteJob?
+
+  @@index([isDefault])
+}
+
+model RoundTable {
+  id                String   @id @default(cuid())
+  topic             String
+  agentCount        Int
+  maxRounds         Int      @default(5)
+  status            String   @default("active") // "active" | "paused" | "archived"
+  selectedAgentIds  String?  // JSON array of selected persona IDs
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  agents         Agent[]
+  rounds         Round[]
+  moeVoteJob     MoeVoteJob?
+  discussionJob  DiscussionJob?
 }
 
 model MoeVoteJob {
@@ -53,16 +69,19 @@ model MoeVoteJob {
 }
 
 model Agent {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   roundTableId String
+  personaId    String? // Optional reference to Persona
   name         String
-  persona      String // System prompt defining role/perspective
-  order        Int    // Turn order (1, 2, 3...)
+  persona      String  // System prompt defining role/perspective
+  order        Int     // Turn order (1, 2, 3...)
 
   roundTable RoundTable @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  personaRef Persona?   @relation(fields: [personaId], references: [id], onDelete: SetNull)
   messages   Message[]
 
   @@index([roundTableId])
+  @@index([personaId])
 }
 
 model Round {
@@ -85,6 +104,7 @@ model Message {
   agentId   String
   content   String   // The agent's response
   toolCalls String?  // JSON array of web searches performed
+  citations String?  // JSON array of {url, title, usedInContext} objects
   createdAt DateTime @default(now())
 
   round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
@@ -102,4 +122,31 @@ model SearchCache {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])  // For efficient cleanup
+}
+
+model DiscussionJob {
+  id           String   @id @default(cuid())
+  status       String   // "pending" | "running" | "completed" | "failed"
+  topic        String
+  agentCount   Int
+  maxRounds    Int      @default(5)
+  
+  // References round table
+  roundTableId String   @unique
+  roundTable   RoundTable @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  
+  // Progress tracking
+  currentRound Int?
+  currentPhase String?  // "discussion" | "completed"
+  
+  // Error tracking
+  error        String?
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  
+  @@index([status])
+  @@index([createdAt])
 }

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DEFAULT_PERSONAS } from '@/lib/personas';
 
-interface AgentPersona {
+interface Persona {
+  id: string;
   name: string;
-  persona: string;
-  order: number;
+  description: string;
+  systemPrompt: string;
+  isDefault: boolean;
 }
 
 export default function RoundTableForm() {
@@ -17,38 +18,64 @@ export default function RoundTableForm() {
   const [maxRounds, setMaxRounds] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [showPersonas, setShowPersonas] = useState(false);
-  const [personas, setPersonas] = useState<AgentPersona[]>([]);
 
-  // Initialize personas when agent count changes or when showing personas
+  // Persona management
+  const [availablePersonas, setAvailablePersonas] = useState<Persona[]>([]);
+  const [selectedPersonaIds, setSelectedPersonaIds] = useState<string[]>([]);
+  const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
+
+  // Fetch available personas on mount
   useEffect(() => {
-    if (showPersonas && personas.length !== agentCount) {
-      const defaultPersonas = DEFAULT_PERSONAS.slice(0, agentCount).map((p, i) => ({
-        name: p.name,
-        persona: p.systemPrompt,
-        order: i + 1,
-      }));
-      setPersonas(defaultPersonas);
-    }
-  }, [showPersonas, agentCount, personas.length]);
+    fetchPersonas();
+  }, []);
 
-  const handleAgentCountChange = (count: number) => {
-    setAgentCount(count);
-    // Reset personas when count changes
-    if (showPersonas) {
-      const defaultPersonas = DEFAULT_PERSONAS.slice(0, count).map((p, i) => ({
-        name: p.name,
-        persona: p.systemPrompt,
-        order: i + 1,
-      }));
-      setPersonas(defaultPersonas);
+  // Auto-select first N personas when agent count changes
+  useEffect(() => {
+    if (availablePersonas.length > 0 && selectedPersonaIds.length === 0) {
+      setSelectedPersonaIds(availablePersonas.slice(0, agentCount).map(p => p.id));
+    }
+  }, [availablePersonas, agentCount, selectedPersonaIds.length]);
+
+  const fetchPersonas = async () => {
+    try {
+      const response = await fetch('/api/personas');
+      if (!response.ok) throw new Error('Failed to fetch personas');
+      const data = await response.json();
+      setAvailablePersonas(data.personas);
+
+      // Auto-select first agentCount personas
+      if (data.personas.length >= agentCount) {
+        setSelectedPersonaIds(data.personas.slice(0, agentCount).map((p: Persona) => p.id));
+      }
+    } catch (err) {
+      console.error('Error fetching personas:', err);
+      setError('Failed to load personas. Please refresh the page.');
+    } finally {
+      setIsLoadingPersonas(false);
     }
   };
 
-  const handlePersonaChange = (index: number, field: 'name' | 'persona', value: string) => {
-    setPersonas(prev => prev.map((p, i) =>
-      i === index ? { ...p, [field]: value } : p
-    ));
+  const handleAgentCountChange = (count: number) => {
+    setAgentCount(count);
+
+    // Adjust selected personas
+    if (count > selectedPersonaIds.length) {
+      // Add more personas from available ones
+      const remaining = availablePersonas
+        .filter(p => !selectedPersonaIds.includes(p.id))
+        .map(p => p.id);
+      const toAdd = remaining.slice(0, count - selectedPersonaIds.length);
+      setSelectedPersonaIds([...selectedPersonaIds, ...toAdd]);
+    } else if (count < selectedPersonaIds.length) {
+      // Remove excess personas
+      setSelectedPersonaIds(selectedPersonaIds.slice(0, count));
+    }
+  };
+
+  const handlePersonaSelect = (index: number, personaId: string) => {
+    const newSelection = [...selectedPersonaIds];
+    newSelection[index] = personaId;
+    setSelectedPersonaIds(newSelection);
   };
 
   const handleCreate = async () => {
@@ -65,6 +92,11 @@ export default function RoundTableForm() {
       return;
     }
 
+    if (selectedPersonaIds.length !== agentCount) {
+      setError(`Please select ${agentCount} agents for the discussion`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -77,7 +109,7 @@ export default function RoundTableForm() {
           topic: topic.trim(),
           agentCount,
           maxRounds,
-          customPersonas: showPersonas && personas.length > 0 ? personas : undefined,
+          selectedPersonaIds,
         }),
       });
 
@@ -95,10 +127,26 @@ export default function RoundTableForm() {
     }
   };
 
+  if (isLoadingPersonas) {
+    return (
+      <div className="max-w-2xl mx-auto flex items-center justify-center py-12">
+        <div className="text-lg">Loading personas...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
-        <h2 className="text-2xl font-bold mb-6">Start a Round Table Discussion</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Start a Round Table Discussion</h2>
+          <button
+            onClick={() => router.push('/personas')}
+            className="text-sm px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg"
+          >
+            Manage Personas
+          </button>
+        </div>
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
@@ -134,8 +182,8 @@ export default function RoundTableForm() {
                 type="button"
                 onClick={() => handleAgentCountChange(count)}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${agentCount === count
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 disabled={isSubmitting}
               >
@@ -143,9 +191,38 @@ export default function RoundTableForm() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {agentCount} agent{agentCount > 1 ? 's' : ''} will participate in the discussion
-          </p>
+        </div>
+
+        {/* Agent Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">
+            Select Agents ({selectedPersonaIds.length}/{agentCount})
+          </label>
+          <div className="space-y-3">
+            {Array.from({ length: agentCount }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <span className="text-sm font-medium w-20">Agent {index + 1}:</span>
+                <select
+                  value={selectedPersonaIds[index] || ''}
+                  onChange={(e) => handlePersonaSelect(index, e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Select a persona...</option>
+                  {availablePersonas.map((persona) => (
+                    <option key={persona.id} value={persona.id}>
+                      {persona.name} - {persona.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          {availablePersonas.length === 0 && (
+            <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+              No personas available. Please create some in the Manage Personas page.
+            </p>
+          )}
         </div>
 
         {/* Max Rounds Input */}
@@ -168,58 +245,13 @@ export default function RoundTableForm() {
           </p>
         </div>
 
-        {/* Persona Customization Toggle */}
-        <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => setShowPersonas(!showPersonas)}
-            className="text-blue-500 hover:text-blue-600 text-sm font-medium"
-          >
-            {showPersonas ? '▼' : '▶'} Customize agent personas (optional)
-          </button>
-
-          {/* Persona Customization UI */}
-          {showPersonas && (
-            <div className="mt-4 space-y-4">
-              {personas.map((persona, index) => (
-                <div key={index} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium mb-1">
-                      Agent {index + 1} Name
-                    </label>
-                    <input
-                      type="text"
-                      value={persona.name}
-                      onChange={(e) => handlePersonaChange(index, 'name', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Persona / System Prompt
-                    </label>
-                    <textarea
-                      value={persona.persona}
-                      onChange={(e) => handlePersonaChange(index, 'persona', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
-                      rows={4}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Submit Button */}
         <button
           onClick={handleCreate}
-          disabled={isSubmitting || !topic.trim()}
-          className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${isSubmitting || !topic.trim()
-            ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-            : 'bg-blue-500 hover:bg-blue-600'
+          disabled={isSubmitting || !topic.trim() || selectedPersonaIds.length !== agentCount}
+          className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-colors ${isSubmitting || !topic.trim() || selectedPersonaIds.length !== agentCount
+              ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600'
             }`}
         >
           {isSubmitting ? 'Creating...' : 'Start Discussion'}
@@ -235,7 +267,7 @@ export default function RoundTableForm() {
           <li>• Agents will discuss your topic sequentially in rounds</li>
           <li>• Each agent has a unique perspective and personality</li>
           <li>• Agents can search the web to support their arguments</li>
-          <li>• Click "Continue" to start each new round</li>
+          <li>• Click "Continue to Round X" to start each new round</li>
         </ul>
       </div>
     </div>

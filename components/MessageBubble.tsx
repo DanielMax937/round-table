@@ -1,11 +1,14 @@
 'use client';
 
 import { ToolCall } from '@/lib/types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface MessageBubbleProps {
   agentName: string;
   content: string;
   toolCalls?: ToolCall[];
+  citations?: Array<{ url: string; title: string; usedInContext?: boolean }>;
   timestamp: Date;
   isStreaming?: boolean;
 }
@@ -14,6 +17,7 @@ export default function MessageBubble({
   agentName,
   content,
   toolCalls = [],
+  citations = [],
   timestamp,
   isStreaming = false,
 }: MessageBubbleProps) {
@@ -37,11 +41,9 @@ export default function MessageBubble({
       {/* Message Content */}
       <div className="ml-10 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          {content.split('\n').map((paragraph, index) => (
-            <p key={index} className="mb-2 last:mb-0">
-              {paragraph}
-            </p>
-          ))}
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
         </div>
 
         {/* Tool Calls */}
@@ -62,6 +64,30 @@ export default function MessageBubble({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Citations */}
+        {citations.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              📎 Sources Referenced:
+            </p>
+            <div className="space-y-1">
+              {citations.map((citation, index) => (
+                <div key={index} className="text-xs">
+                  <a
+                    href={citation.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-start gap-1"
+                  >
+                    <span className="flex-shrink-0">[{index + 1}]</span>
+                    <span className="break-all">{citation.title || citation.url}</span>
+                  </a>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

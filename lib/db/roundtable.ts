@@ -11,7 +11,8 @@ export async function createRoundTable(
   topic: string,
   agentCount: number,
   customPersonas?: Array<{ name: string; persona: string }>,
-  maxRounds: number = 5
+  maxRounds: number = 5,
+  selectedPersonaIds?: string[]
 ): Promise<RoundTableWithAgents> {
   // Validate agent count
   if (agentCount < 2 || agentCount > 6) {
@@ -28,11 +29,56 @@ export async function createRoundTable(
     throw new Error('maxRounds must be between 1 and 50');
   }
 
-  // Get personas (custom or default)
-  const personas = customPersonas || getDefaultPersonas(agentCount);
+  let agentsData: Array<{ name: string; persona: string; personaId?: string | null; order: number }>;
 
-  if (personas.length !== agentCount) {
-    throw new Error(`Expected ${agentCount} personas, got ${personas.length}`);
+  // Handle selected persona IDs (new system)
+  if (selectedPersonaIds && selectedPersonaIds.length > 0) {
+    // Fetch personas from database
+    const dbPersonas = await prisma.persona.findMany({
+      where: {
+        id: { in: selectedPersonaIds },
+      },
+    });
+
+    if (dbPersonas.length !== selectedPersonaIds.length) {
+      throw new Error('Some selected personas were not found');
+    }
+
+    // Map personas to agents in the order they were selected
+    agentsData = selectedPersonaIds.map((personaId, index) => {
+      const persona = dbPersonas.find(p => p.id === personaId);
+      if (!persona) throw new Error(`Persona ${personaId} not found`);
+
+      return {
+        name: persona.name,
+        persona: persona.systemPrompt,
+        personaId: persona.id,
+        order: index + 1,
+      };
+    });
+  }
+  // Handle custom personas (inline)
+  else if (customPersonas) {
+    agentsData = customPersonas.map((persona, index) => ({
+      name: persona.name,
+      persona: (persona as any).persona || (persona as any).systemPrompt,
+      personaId: null,
+      order: index + 1,
+    }));
+  }
+  // Use default personas
+  else {
+    const defaultPersonas = getDefaultPersonas(agentCount);
+    agentsData = defaultPersonas.map((persona, index) => ({
+      name: persona.name,
+      persona: persona.systemPrompt,
+      personaId: null,
+      order: index + 1,
+    }));
+  }
+
+  if (agentsData.length !== agentCount) {
+    throw new Error(`Expected ${agentCount} agents, got ${agentsData.length}`);
   }
 
   // Create round table with agents in a transaction
@@ -42,12 +88,9 @@ export async function createRoundTable(
       agentCount,
       maxRounds,
       status: 'active',
+      selectedAgentIds: selectedPersonaIds ? JSON.stringify(selectedPersonaIds) : null,
       agents: {
-        create: personas.map((persona, index) => ({
-          name: persona.name,
-          persona: (persona as any).persona || (persona as any).systemPrompt,
-          order: index + 1,
-        })),
+        create: agentsData,
       },
     },
     include: {

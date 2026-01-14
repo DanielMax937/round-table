@@ -21,6 +21,7 @@ interface Round {
     agentId: string;
     content: string;
     toolCalls?: any[];
+    citations?: string; // JSON string
     createdAt: Date;
     agent: Agent;
   }>;
@@ -252,15 +253,26 @@ export default function DiscussionView({
             <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold">Round {round.roundNumber}</h3>
             </div>
-            {round.messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                agentName={message.agent.name}
-                content={message.content}
-                toolCalls={message.toolCalls || []}
-                timestamp={new Date(message.createdAt)}
-              />
-            ))}
+            {round.messages.map((message) => {
+              // Parse citations from JSON string
+              let parsedCitations = [];
+              try {
+                parsedCitations = message.citations ? JSON.parse(message.citations as string) : [];
+              } catch (e) {
+                console.error('Failed to parse citations:', e);
+              }
+
+              return (
+                <MessageBubble
+                  key={message.id}
+                  agentName={message.agent.name}
+                  content={message.content}
+                  toolCalls={message.toolCalls || []}
+                  citations={parsedCitations}
+                  timestamp={new Date(message.createdAt)}
+                />
+              );
+            })}
           </div>
         ))}
 

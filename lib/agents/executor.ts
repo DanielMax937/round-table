@@ -113,16 +113,13 @@ export function extractTextContent(
   return textBlocks.join('\n');
 }
 
-/**
- * Execute an agent turn with streaming using Claude Agent SDK
- */
 export async function executeAgentTurn(
   agent: AgentModel,
   context: AgentContext,
   apiKey: string,
   onChunk?: (chunk: string) => void,
   onToolCall?: (toolCall: ToolCall) => void
-): Promise<{ content: string; toolCalls: ToolCall[] }> {
+): Promise<{ content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> {
 
   const formattedMessages = formatMessagesForClaude(context, agent.id);
   const toolCalls: ToolCall[] = [];
@@ -139,7 +136,7 @@ export async function executeAgentTurn(
   // Create web search tool using SDK's tool helper
   const webSearchTool = tool(
     'web_search',
-    'Search the web for current information, facts, or recent events. Use key terms only.',
+    'Search the web for current information, facts, or recent events. Use key terms only. When you use search results in your response, MENTION THE SOURCE URLs so they can be cited.',
     { query: z.string().describe('The search query terms') },
     async (args) => {
       console.log(`🔍 Executing web_search tool with query: "${args.query}"`);
@@ -217,9 +214,16 @@ export async function executeAgentTurn(
       }
     }
 
+    // Extract citations from content and search results
+    const { extractCitations } = await import('./citations');
+    const allSearchResults = toolCalls.flatMap(tc => tc.results || []);
+
+    const citations = extractCitations(fullContent, allSearchResults);
+
     return {
       content: fullContent,
       toolCalls,
+      citations,
     };
   } catch (error) {
     console.error(`Error executing agent ${agent.name}:`, error);
@@ -235,11 +239,12 @@ export async function executeAgentTurnSimple(
   agent: AgentModel,
   context: AgentContext,
   apiKey: string
-): Promise<{ content: string; toolCalls: ToolCall[] }> {
+): Promise<{ content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> {
   let content = '';
   const toolCalls: ToolCall[] = [];
+  let citations: Array<{ url: string; title: string; usedInContext?: boolean }> = [];
 
-  await executeAgentTurn(
+  const result = await executeAgentTurn(
     agent,
     context,
     apiKey,
@@ -251,5 +256,9 @@ export async function executeAgentTurnSimple(
     }
   );
 
-  return { content, toolCalls };
+  return {
+    content: result.content,
+    toolCalls: result.toolCalls,
+    citations: result.citations,
+  };
 }

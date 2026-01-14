@@ -106,8 +106,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           // Execute round with agents
           let messageBuffer = '';
           let currentToolCalls: any[] = [];
+          let currentCitations: any[] = [];
+          const completedMessages: Array<{ agentId: string; content: string; toolCalls: any[]; citations: any[] }> = [];
 
-          await executeRound(
+          const roundResult = await executeRound(
             agents,
             roundTable.topic,
             roundNumber,
@@ -124,6 +126,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                     });
                     messageBuffer = '';
                     currentToolCalls = [];
+                    currentCitations = [];
                     break;
 
                   case 'chunk':
@@ -149,21 +152,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                     break;
 
                   case 'agent-complete':
-                    // Save message to database
-                    createMessage(round.id, event.data.agentId!, messageBuffer, currentToolCalls)
-                      .then(() => {
-                        sendEvent('message-saved', {
-                          agentId: event.data.agentId,
-                          timestamp: new Date(),
-                        });
-                      })
-                      .catch((error) => {
-                        console.error('Error saving message:', error);
-                        sendEvent('error', {
-                          error: 'Failed to save message',
-                          details: error.message,
-                        });
-                      });
+                    // Store completed message data
+                    completedMessages.push({
+                      agentId: event.data.agentId!,
+                      content: messageBuffer,
+                      toolCalls: [...currentToolCalls],
+                      citations: [...currentCitations],
+                    });
 
                     sendEvent('agent-complete', {
                       agentId: event.data.agentId,
@@ -194,6 +189,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               },
             }
           );
+
+          // Now save all messages with their citations from the executeRound result
+          for (const message of roundResult.messages) {
+            await createMessage(
+              round.id,
+              message.agentId,
+              message.content,
+              message.toolCalls,
+              message.citations
+            );
+            sendEvent('message-saved', {
+              agentId: message.agentId,
+              timestamp: new Date(),
+            });
+          }
 
           // Send done event
           sendEvent('done', {

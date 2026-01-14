@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface BlogPostModalProps {
   isOpen: boolean;
@@ -11,11 +13,14 @@ interface BlogPostModalProps {
 
 export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPostModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [blogPost, setBlogPost] = useState('');
+  const [blogPostEn, setBlogPostEn] = useState('');
+  const [blogPostZh, setBlogPostZh] = useState('');
+  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'zh'>('en');
+  const [generatingLanguage, setGeneratingLanguage] = useState<'en' | 'zh' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Issue 2: Cleanup AbortController on unmount or when modal closes
+  // Cleanup AbortController on unmount or when modal closes
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -31,7 +36,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
     }
   }, [isOpen, isGenerating]);
 
-  // Issue 1: Keyboard navigation - ESC key to close modal
+  // Keyboard navigation - ESC key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -50,9 +55,10 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
   const generateBlogPost = async () => {
     setIsGenerating(true);
     setError(null);
-    setBlogPost('');
+    setBlogPostEn('');
+    setBlogPostZh('');
+    setGeneratingLanguage(null);
 
-    // Issue 2: Create new AbortController for this request
     abortControllerRef.current = new AbortController();
 
     try {
@@ -88,41 +94,49 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
             // Event type line
             continue;
           } else if (line.startsWith('data:')) {
-            // Issue 3: Safe JSON parsing with try-catch
             try {
               const data = JSON.parse(line.slice(6));
 
+              if (data.language) {
+                setGeneratingLanguage(data.language);
+              }
+
               if (data.chunk) {
-                setBlogPost(prev => prev + data.chunk);
+                if (data.language === 'en') {
+                  setBlogPostEn(prev => prev + data.chunk);
+                } else if (data.language === 'zh') {
+                  setBlogPostZh(prev => prev + data.chunk);
+                }
               } else if (data.error) {
                 setError(data.error);
               }
             } catch (parseError) {
               console.error('Failed to parse SSE data:', line, parseError);
-              // Continue processing other lines instead of failing completely
             }
           }
         }
       }
 
     } catch (err) {
-      // Don't show error if request was aborted intentionally
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsGenerating(false);
+      setGeneratingLanguage(null);
       abortControllerRef.current = null;
     }
   };
 
   const downloadMarkdown = () => {
-    const blob = new Blob([blogPost], { type: 'text/markdown' });
+    const content = currentLanguage === 'en' ? blogPostEn : blogPostZh;
+    const suffix = currentLanguage === 'en' ? 'en' : 'zh';
+    const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${topic.toLowerCase().replace(/\s+/g, '-')}-blog-post.md`;
+    a.download = `${topic.toLowerCase().replace(/\s+/g, '-')}-${suffix}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -130,9 +144,12 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
   };
 
   const copyToClipboard = async () => {
-    await navigator.clipboard.writeText(blogPost);
-    // Could add toast notification here
+    const content = currentLanguage === 'en' ? blogPostEn : blogPostZh;
+    await navigator.clipboard.writeText(content);
   };
+
+  const currentBlogPost = currentLanguage === 'en' ? blogPostEn : blogPostZh;
+  const hasBothLanguages = blogPostEn && blogPostZh;
 
   return (
     <div
@@ -156,10 +173,10 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {!isGenerating && !blogPost && !error && (
+          {!isGenerating && !currentBlogPost && !error && (
             <div className="text-center py-12">
               <p className="text-gray-600 mb-6">
-                Generate a Substack-ready blog post from this round table discussion on:
+                Generate a Substack-ready blog post in both English and Chinese from this round table discussion on:
               </p>
               <p className="text-xl font-semibold text-gray-900 mb-8">"{topic}"</p>
               <button
@@ -171,25 +188,55 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
             </div>
           )}
 
+          {/* Language Switcher - show when both versions exist */}
+          {hasBothLanguages && !isGenerating && (
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setCurrentLanguage('en')}
+                className={`px-4 py-2 rounded font-medium transition-colors ${currentLanguage === 'en'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => setCurrentLanguage('zh')}
+                className={`px-4 py-2 rounded font-medium transition-colors ${currentLanguage === 'zh'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+              >
+                中文
+              </button>
+            </div>
+          )}
+
           {isGenerating && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-blue-600">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-                <span>Synthesizing discussion into blog post...</span>
+                <span>
+                  {generatingLanguage === 'en' && 'Generating English version...'}
+                  {generatingLanguage === 'zh' && 'Generating Chinese version (生成中文版本)...'}
+                  {!generatingLanguage && 'Synthesizing discussion into blog post...'}
+                </span>
               </div>
-              <div className="prose max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 p-4 rounded">
-                  {blogPost}
-                </pre>
-              </div>
+              {currentBlogPost && (
+                <div className="prose prose-sm max-w-none text-black [&_*]:text-black [&_a]:text-blue-600 [&_a]:no-underline hover:[&_a]:underline">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentBlogPost}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
           )}
 
-          {!isGenerating && blogPost && (
-            <div className="prose max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 p-4 rounded">
-                {blogPost}
-              </pre>
+          {!isGenerating && currentBlogPost && (
+            <div className="prose prose-sm max-w-none text-black [&_*]:text-black [&_a]:text-blue-600 [&_a]:no-underline hover:[&_a]:underline">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentBlogPost}
+              </ReactMarkdown>
             </div>
           )}
 
@@ -201,7 +248,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
         </div>
 
         {/* Footer */}
-        {blogPost && !isGenerating && (
+        {currentBlogPost && !isGenerating && (
           <div className="p-6 border-t flex gap-3 justify-end">
             <button
               onClick={copyToClipboard}
@@ -213,7 +260,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
               onClick={downloadMarkdown}
               className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
             >
-              Download Markdown
+              Download Markdown ({currentLanguage === 'en' ? 'EN' : '中文'})
             </button>
           </div>
         )}
