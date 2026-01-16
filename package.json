@@ -16,11 +16,12 @@
     "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "@anthropic-ai/sdk": "^0.32.1",
     "@next/swc-darwin-arm64": "^16.1.1",
     "@prisma/client": "^5.22.0",
+    "dotenv": "^17.2.3",
     "next": "^15.3.2",
+    "openai": "^4.77.0",
     "p-limit": "^7.2.0",
     "playwright": "^1.57.0",
     "playwright-core": "^1.57.0",

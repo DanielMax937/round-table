@@ -17,10 +17,10 @@ import { MOE_VOTE_CONFIG } from './config';
  * Execute MoE voting job in background
  */
 export async function executeJobInBackground(jobId: string): Promise<void> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    await failMoeVoteJob(jobId, 'Anthropic API key not configured');
-    throw new Error('Anthropic API key not configured');
+    await failMoeVoteJob(jobId, 'OpenAI API key not configured');
+    throw new Error('OpenAI API key not configured');
   }
 
   // Get job details

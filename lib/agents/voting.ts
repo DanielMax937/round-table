@@ -1,5 +1,6 @@
 import { Agent as AgentModel, Message } from '@prisma/client';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { streamChatCompletion } from '@/lib/llm/client';
+import type { LLMMessage } from '@/lib/llm/types';
 import { Vote, VotingResult, AgentScore, VotingAgent, VoterEvaluation } from '@/lib/moe-vote/types';
 import { getVotingAgents } from './voting-personas';
 
@@ -156,47 +157,28 @@ export async function executeVoterEvaluation(
   let textContent = '';
 
   try {
-    const stream = query({
-      prompt: votingContext,
-      options: {
-        maxThinkingTokens: 16000, // 或者更高，取决于你的需求
-        maxTurns: 10,
-        systemPrompt: (() => {
-          let prompt = voter.persona;
-          if (language === 'zh') {
-            prompt += '\n\nIMPORTANT: You MUST provide your justification in Chinese (中文). scores should still be numbers.';
-          }
-          return prompt;
-        })(),
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
+    const systemPrompt = (() => {
+      let prompt = voter.persona;
+      if (language === 'zh') {
+        prompt += '\n\nIMPORTANT: You MUST provide your justification in Chinese (中文). scores should still be numbers.';
+      }
+      return prompt;
+    })();
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: votingContext },
+    ];
+
+    const stream = streamChatCompletion(messages, {
+      maxTokens: 8192,
     });
 
-    for await (const message of stream) {
-      // Handle streaming events for text chunks
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          textContent += event.delta.text;
-        }
-      }
-
-      // Handle final result message
-      if (message.type === 'result') {
-        if (!textContent && (message as any).result) {
-          const result = (message as any).result;
-          if (result.content) {
-            for (const block of result.content) {
-              if (block.type === 'text') {
-                textContent += block.text;
-              }
-            }
-          }
-        }
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        textContent += chunk.delta;
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
 
@@ -412,34 +394,18 @@ Provide a concise summary of their stance.`;
 
   let summary = '';
   try {
-    const stream = query({
-      prompt: summaryPrompt,
-      options: {
-        systemPrompt: 'You are a helpful summarizer.',
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
-    });
+    const messages: LLMMessage[] = [
+      { role: 'system', content: 'You are a helpful summarizer.' },
+      { role: 'user', content: summaryPrompt },
+    ];
 
-    for await (const message of stream) {
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          summary += event.delta.text;
-        }
-      }
-      if (message.type === 'result') {
-        const result = (message as any).result;
-        if (result.content) {
-          for (const block of result.content) {
-            if (block.type === 'text' && !summary) {
-              summary += block.text;
-            }
-          }
-        }
+    const stream = streamChatCompletion(messages);
+
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        summary += chunk.delta;
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
   } catch (error) {
@@ -464,35 +430,19 @@ Thought: [Your reasoning]
 Decision: [YES/NO]`;
 
   try {
-    const stream = query({
-      prompt: decisionPrompt,
-      options: {
-        systemPrompt: 'You are a decision analyzer. Output in the requested format.',
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
-    });
+    const messages: LLMMessage[] = [
+      { role: 'system', content: 'You are a decision analyzer. Output in the requested format.' },
+      { role: 'user', content: decisionPrompt },
+    ];
+
+    const stream = streamChatCompletion(messages);
 
     let response = '';
-    for await (const message of stream) {
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          response += event.delta.text;
-        }
-      }
-      if (message.type === 'result') {
-        const result = (message as any).result;
-        if (result.content) {
-          for (const block of result.content) {
-            if (block.type === 'text' && !response) {
-              response += block.text;
-            }
-          }
-        }
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        response += chunk.delta;
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
 

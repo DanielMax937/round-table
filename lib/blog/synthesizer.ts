@@ -1,6 +1,7 @@
-// Blog post synthesis using Claude Agent SDK
+// Blog post synthesis using OpenAI client
 
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { streamChatCompletion } from '@/lib/llm/client';
+import type { LLMMessage } from '@/lib/llm/types';
 import { SynthesisEvent, SynthesisInput } from './types';
 
 /**
@@ -152,46 +153,26 @@ export async function* synthesizeBlogPost(
     const englishPrompt = buildSynthesisPrompt(input, 'en');
     let englishContent = '';
 
-    const englishStream = query({
-      prompt: englishPrompt,
-      options: {
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
-    });
+    const messages: LLMMessage[] = [
+      { role: 'user', content: englishPrompt },
+    ];
 
-    for await (const message of englishStream) {
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          const chunk = event.delta.text;
-          englishContent += chunk;
+    const englishStream = streamChatCompletion(messages);
 
-          yield {
-            type: 'chunk',
-            data: {
-              chunk,
-              language: 'en',
-              timestamp: new Date()
-            }
-          };
-        }
-      }
+    for await (const chunk of englishStream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        englishContent += chunk.delta;
 
-      if (message.type === 'result') {
-        if (!englishContent && (message as any).result) {
-          const result = (message as any).result;
-          if (result.content) {
-            for (const block of result.content) {
-              if (block.type === 'text') {
-                englishContent += block.text;
-              }
-            }
+        yield {
+          type: 'chunk',
+          data: {
+            chunk: chunk.delta,
+            language: 'en',
+            timestamp: new Date()
           }
-        }
+        };
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
 
@@ -240,46 +221,26 @@ export async function* synthesizeBlogPost(
     const chinesePrompt = buildSynthesisPrompt(input, 'zh');
     let chineseContent = '';
 
-    const chineseStream = query({
-      prompt: chinesePrompt,
-      options: {
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
-    });
+    const messages: LLMMessage[] = [
+      { role: 'user', content: chinesePrompt },
+    ];
 
-    for await (const message of chineseStream) {
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          const chunk = event.delta.text;
-          chineseContent += chunk;
+    const chineseStream = streamChatCompletion(messages);
 
-          yield {
-            type: 'chunk',
-            data: {
-              chunk,
-              language: 'zh',
-              timestamp: new Date()
-            }
-          };
-        }
-      }
+    for await (const chunk of chineseStream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        chineseContent += chunk.delta;
 
-      if (message.type === 'result') {
-        if (!chineseContent && (message as any).result) {
-          const result = (message as any).result;
-          if (result.content) {
-            for (const block of result.content) {
-              if (block.type === 'text') {
-                chineseContent += block.text;
-              }
-            }
+        yield {
+          type: 'chunk',
+          data: {
+            chunk: chunk.delta,
+            language: 'zh',
+            timestamp: new Date()
           }
-        }
+        };
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
 

@@ -1,10 +1,11 @@
 // Agent execution logic
 
-import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { Agent as AgentModel, Message } from '@prisma/client';
 import { AgentContext, ToolCall } from '../types';
 import { performWebSearch, formatSearchResults } from './tools/websearch';
 import { z } from 'zod';
+import { streamChatCompletion } from '@/lib/llm/client';
+import type { LLMMessage } from '@/lib/llm/types';
 
 /**
  * Build agent context from discussion history
@@ -134,41 +135,11 @@ export async function executeAgentTurn(
     }
   }
 
-  // Create web search tool using SDK's tool helper
-  const webSearchTool = tool(
-    'web_search',
-    'Search the web for current information, facts, or recent events. Use key terms only. When you use search results in your response, MENTION THE SOURCE URLs so they can be cited.',
-    { query: z.string().describe('The search query terms') },
-    async (args) => {
-      console.log(`🔍 Executing web_search tool with query: "${args.query}"`);
-
-      // Create and notify about tool call
-      const toolCall: ToolCall = {
-        type: 'web_search',
-        query: args.query,
-        timestamp: new Date(),
-      };
-      toolCalls.push(toolCall);
-      onToolCall?.(toolCall);
-
-      try {
-        const results = await performWebSearch(args.query);
-        toolCall.results = results;
-        const content = formatSearchResults(results);
-        return { content: [{ type: 'text' as const, text: content }] };
-      } catch (error: any) {
-        console.error("Web search failed:", error);
-        return { content: [{ type: 'text' as const, text: `Search failed: ${error.message}` }] };
-      }
-    }
-  );
-
-  // Create MCP server with the web search tool
-  const mcpServer = createSdkMcpServer({
-    name: 'round-table-tools',
-    version: '1.0.0',
-    tools: [webSearchTool],
-  });
+  // NOTE: Web search tooling has been removed with the Claude SDK migration.
+  // To re-add web search capability, you can implement it as:
+  // 1. Function calling with OpenAI (if your model supports it)
+  // 2. Prompt-based approach where agent requests search via special syntax
+  // 3. External orchestration layer that detects search requests
 
   try {
     // Build system prompt with language instruction
@@ -179,47 +150,19 @@ export async function executeAgentTurn(
       systemPrompt += '\n\nIMPORTANT: You MUST respond in English. All your responses should be in English.';
     }
 
-    const stream = query({
-      prompt: promptContent,
-      options: {
-        systemPrompt,
-        model: 'claude-sonnet-4-20250514',
-        includePartialMessages: true,
-        mcpServers: {
-          'round-table-tools': mcpServer,
-        },
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        persistSession: false,
-      },
-    });
+    const messages: LLMMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: promptContent },
+    ];
 
-    for await (const message of stream) {
-      // Handle streaming events for text chunks
-      if (message.type === 'stream_event') {
-        const event = (message as any).event;
+    const stream = streamChatCompletion(messages);
 
-        // Handle text deltas
-        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-          const chunk = event.delta.text;
-          fullContent += chunk;
-          onChunk?.(chunk);
-        }
-      }
-
-      // Handle final result message
-      if (message.type === 'result') {
-        // If we didn't get streaming content, extract from result
-        if (!fullContent && (message as any).result) {
-          const result = (message as any).result;
-          if (result.content) {
-            for (const block of result.content) {
-              if (block.type === 'text') {
-                fullContent += block.text;
-              }
-            }
-          }
-        }
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_delta' && chunk.delta) {
+        fullContent += chunk.delta;
+        onChunk?.(chunk.delta);
+      } else if (chunk.type === 'error') {
+        throw new Error(chunk.error || 'LLM streaming error');
       }
     }
 
