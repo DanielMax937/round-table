@@ -5,7 +5,26 @@ import { AgentContext, ToolCall } from '../types';
 import { performWebSearch, formatSearchResults } from './tools/websearch';
 import { z } from 'zod';
 import { streamChatCompletion } from '@/lib/llm/client';
-import type { LLMMessage } from '@/lib/llm/types';
+import type { LLMMessage, LLMTool } from '@/lib/llm/types';
+
+// Web search tool definition for OpenAI function calling
+const WEB_SEARCH_TOOL: LLMTool = {
+  type: 'function',
+  function: {
+    name: 'web_search',
+    description: 'Search the web for current information, facts, or recent events. Use this to find supporting evidence for your arguments.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query terms',
+        },
+      },
+      required: ['query'],
+    },
+  },
+};
 
 /**
  * Build agent context from discussion history
@@ -135,12 +154,6 @@ export async function executeAgentTurn(
     }
   }
 
-  // NOTE: Web search tooling has been removed with the Claude SDK migration.
-  // To re-add web search capability, you can implement it as:
-  // 1. Function calling with OpenAI (if your model supports it)
-  // 2. Prompt-based approach where agent requests search via special syntax
-  // 3. External orchestration layer that detects search requests
-
   try {
     // Build system prompt with language instruction
     let systemPrompt = agent.persona;
@@ -155,15 +168,116 @@ export async function executeAgentTurn(
       { role: 'user', content: promptContent },
     ];
 
-    const stream = streamChatCompletion(messages);
+    // Log whether tools are enabled
+    console.log(`[Agent ${agent.name}] Starting turn with web_search tool enabled`);
+
+    // First call - may result in tool calls
+    let stream = streamChatCompletion(messages, { tools: [WEB_SEARCH_TOOL] });
+    let pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
 
     for await (const chunk of stream) {
       if (chunk.type === 'content_delta' && chunk.delta) {
         fullContent += chunk.delta;
         onChunk?.(chunk.delta);
+      } else if (chunk.type === 'tool_call_complete' && chunk.toolCall) {
+        pendingToolCalls.push({
+          id: chunk.toolCall.id,
+          name: chunk.toolCall.function.name,
+          arguments: chunk.toolCall.function.arguments,
+        });
       } else if (chunk.type === 'error') {
         throw new Error(chunk.error || 'LLM streaming error');
       }
+    }
+
+    // Process tool calls if any
+    if (pendingToolCalls.length > 0) {
+      console.log(`[Agent ${agent.name}] LLM requested ${pendingToolCalls.length} tool call(s)`);
+
+      for (const tc of pendingToolCalls) {
+        if (tc.name === 'web_search') {
+          try {
+            const args = JSON.parse(tc.arguments);
+            const query = args.query;
+
+            console.log(`[Agent ${agent.name}] 🔍 Executing web_search with query: "${query}"`);
+
+            const searchResults = await performWebSearch(query);
+            const formattedResults = formatSearchResults(searchResults);
+
+            console.log(`[Agent ${agent.name}] 📊 Web search returned ${searchResults.length} results:`);
+            searchResults.slice(0, 3).forEach((r, i) => {
+              console.log(`  [${i + 1}] ${r.title} - ${r.url}`);
+            });
+
+            // Create tool call record
+            const toolCallRecord: ToolCall = {
+              type: 'web_search',
+              query,
+              results: searchResults,
+              timestamp: new Date(),
+            };
+            toolCalls.push(toolCallRecord);
+            onToolCall?.(toolCallRecord);
+
+            // Add assistant message with tool call and tool result to messages
+            messages.push({
+              role: 'assistant',
+              content: '',
+              tool_calls: [{
+                id: tc.id,
+                type: 'function',
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              }],
+            });
+
+            messages.push({
+              role: 'tool',
+              content: formattedResults,
+              tool_call_id: tc.id,
+            });
+
+          } catch (error) {
+            console.error(`[Agent ${agent.name}] ❌ Web search failed:`, error);
+            // Add error response
+            messages.push({
+              role: 'assistant',
+              content: '',
+              tool_calls: [{
+                id: tc.id,
+                type: 'function',
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              }],
+            });
+            messages.push({
+              role: 'tool',
+              content: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              tool_call_id: tc.id,
+            });
+          }
+        }
+      }
+
+      // Continue conversation after tool calls
+      console.log(`[Agent ${agent.name}] Continuing after tool calls...`);
+      stream = streamChatCompletion(messages, { tools: [WEB_SEARCH_TOOL] });
+
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_delta' && chunk.delta) {
+          fullContent += chunk.delta;
+          onChunk?.(chunk.delta);
+        } else if (chunk.type === 'error') {
+          throw new Error(chunk.error || 'LLM streaming error');
+        }
+      }
+    } else {
+      console.log(`[Agent ${agent.name}] ℹ️ LLM did not use web_search tool`);
     }
 
     // Extract citations from content and search results

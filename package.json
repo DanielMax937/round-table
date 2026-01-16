@@ -16,7 +16,6 @@
     "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
     "@next/swc-darwin-arm64": "^16.1.1",
     "@prisma/client": "^5.22.0",
     "dotenv": "^17.2.3",

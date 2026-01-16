@@ -23,10 +23,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   try {
     // Get API key from environment
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
+        { error: 'OpenAI API key not configured' },
         { status: 500 }
       );
     }
@@ -88,10 +88,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           try {
             const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
             controller.enqueue(encoder.encode(message));
-          } catch (error) {
-            // Controller may have been closed by client disconnect
-            console.error('Error sending SSE event:', error);
+          } catch {
+            // Controller may have been closed by client disconnect - silently ignore
             isControllerClosed = true;
+          }
+        };
+
+        const safeClose = () => {
+          if (!isControllerClosed) {
+            isControllerClosed = true;
+            try {
+              controller.close();
+            } catch {
+              // Already closed - ignore
+            }
           }
         };
 
@@ -212,16 +222,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             timestamp: new Date(),
           });
 
-          isControllerClosed = true;
-          controller.close();
+          safeClose();
         } catch (error) {
           console.error('Error executing round:', error);
           sendEvent('error', {
             error: 'Round execution failed',
             details: error instanceof Error ? error.message : 'Unknown error',
           });
-          isControllerClosed = true;
-          controller.close();
+          safeClose();
         }
       },
     });

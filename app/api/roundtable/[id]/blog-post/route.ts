@@ -16,10 +16,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   try {
     // Get API key from environment
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
+        { error: 'OpenAI API key not configured' },
         { status: 500 }
       );
     }

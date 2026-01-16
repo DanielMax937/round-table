@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output
+.next
+out
+build
+
+# Database
+*.db
+*.db-journal
+prisma/*.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+docs/
+
+# Tests
+scripts/test-*.ts
+__tests__
+*.test.ts
+*.spec.ts
+
+# Misc
+.playwright-mcp

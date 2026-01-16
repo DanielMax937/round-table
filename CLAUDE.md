@@ -10,7 +10,7 @@ Round Table is a multi-agent AI discussion platform where users create "round ta
 
 - Frontend: Next.js 15 (App Router) + React 19 + Tailwind CSS
 - Database: SQLite with Prisma ORM
-- AI: Anthropic Claude SDK (not Agent SDK - direct API integration)
+- AI: OpenAI API (via OpenAI SDK with configurable base URL)
 - Real-time: Server-Sent Events (SSE) for streaming
 
 ## Development Commands
@@ -54,10 +54,11 @@ npx prisma studio       # View database in GUI
    - Database operations in `lib/db/*.ts`
    - Schema in `prisma/schema.prisma`
 
-### Agent System (Important: NOT using Agent SDK)
+### Agent System (Using OpenAI API)
 
-The project uses **direct Anthropic API calls**, not the Agent SDK:
+The project uses **OpenAI SDK** with configurable base URL for LLM calls:
 
+- **LLM Client**: `lib/llm/client.ts` - OpenAI client wrapper with streaming
 - **Agent Configuration**: `lib/agents/config.ts` - Agent setup
 - **Web Search Tool**: `lib/agents/tools/websearch.ts` - Tool implementation
 - **Executor**: `lib/agents/executor.ts` - Core agent execution with streaming
@@ -68,7 +69,7 @@ The project uses **direct Anthropic API calls**, not the Agent SDK:
 - Agents execute **sequentially** (not parallel) - Agent 1 → Agent 2 → Agent 3 → back to Agent 1
 - Full conversation context is passed to each agent (all previous rounds)
 - Web search tool is available to all agents
-- Streaming responses via SSE through `executeAgentTurn()` in `lib/agents/executor.ts:101`
+- Streaming responses via SSE through `executeAgentTurn()` in `lib/agents/executor.ts:117`
 
 ### Data Flow
 
@@ -83,7 +84,7 @@ executeRound() - Sequential agent execution
   ↓
 For each agent:
   - buildAgentContext() - Compile all previous messages
-  - executeAgentTurn() - Call Claude API with streaming
+  - executeAgentTurn() - Call LLM API with streaming
   - Stream SSE events: agent-start → chunk → tool-call → agent-complete
   - createMessage() - Save to database
   ↓
@@ -120,7 +121,7 @@ The API emits these Server-Sent Events:
 - Round → Messages (one-to-many)
 - Agent → Messages (one-to-many)
 
-**Important:** Messages from all previous rounds are included as context for each agent. This is handled in `formatMessagesForClaude()` in `lib/agents/executor.ts:30`.
+**Important:** Messages from all previous rounds are included as context for each agent. This is handled in `formatMessagesForClaude()` in `lib/agents/executor.ts:49`.
 
 ## Environment Variables
 
@@ -128,13 +129,14 @@ Required in `.env`:
 
 ```bash
 DATABASE_URL="file:./dev.db"           # SQLite database path
-ANTHROPIC_API_KEY="your-key-here"      # Claude API key (required)
+OPENAI_API_KEY="your-key-here"         # OpenAI API key (required)
 ```
 
 Optional:
 
 ```bash
-ANTHROPIC_BASE_URL="https://api.anthropic.com"  # Custom API endpoint
+OPENAI_BASE_URL="https://api.openai.com/v1"  # Custom API endpoint
+OPENAI_MODEL_NAME="gpt-4-turbo"              # Model to use (default: gpt-4-turbo)
 ```
 
 ## Agent Personas
