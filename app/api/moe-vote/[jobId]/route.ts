@@ -42,9 +42,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     // Add progress if running
     if (job.status === 'running' && job.currentRound !== null && job.currentPhase) {
+      // Use MOE_VOTE_CONFIG for total rounds since roundTable is loaded via include
       response.progress = {
         currentRound: job.currentRound,
-        totalRounds: job.roundTable.maxRounds,
+        totalRounds: MOE_VOTE_CONFIG.roundCount,
         phase: job.currentPhase as MoeVoteJobPhase,
       };
     }

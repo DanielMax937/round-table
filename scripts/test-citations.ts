@@ -22,7 +22,7 @@ async function testCitations() {
                 topic: 'What are the latest breakthroughs in quantum computing announced this month?',
                 agentCount: 2,
                 maxRounds: 3,
-                selectedAgentIds: personas.map(p => p.id),
+                selectedAgentIds: JSON.stringify(personas.map(p => p.id)),
             },
         });
 

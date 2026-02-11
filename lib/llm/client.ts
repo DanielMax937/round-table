@@ -78,7 +78,7 @@ export async function* streamChatCompletion(
                 ...(m.tool_calls && { tool_calls: m.tool_calls }),
                 ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
             })),
-            temperature: options.temperature ?? 0.7,
+            temperature: options.temperature ?? 0.9, // Higher temperature for more natural, varied responses
             max_tokens: options.maxTokens ?? 4096,
             stream: true,
         };
@@ -88,7 +88,7 @@ export async function* streamChatCompletion(
             requestParams.tools = options.tools;
         }
 
-        const stream = await client.chat.completions.create(requestParams);
+        const stream = await client.chat.completions.create(requestParams) as any;
 
         let chunkCount = 0;
         let totalLength = 0;

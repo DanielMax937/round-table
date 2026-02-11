@@ -156,6 +156,7 @@ export async function executeSingleAgent(
     agent,
     context,
     options.apiKey,
+    options.language,
     (chunk) => {
       options.onEvent?.({
         type: 'chunk',

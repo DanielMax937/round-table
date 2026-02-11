@@ -45,6 +45,7 @@ async function testAgentIntegration() {
       roundTableId: 'test-rt',
       name: persona.name,
       persona: persona.systemPrompt,
+      personaId: null,
       order: index + 1,
       createdAt: new Date(),
     }));

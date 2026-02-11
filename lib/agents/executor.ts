@@ -6,6 +6,8 @@ import { performWebSearch, formatSearchResults } from './tools/websearch';
 import { z } from 'zod';
 import { streamChatCompletion } from '@/lib/llm/client';
 import type { LLMMessage, LLMTool } from '@/lib/llm/types';
+import { buildAgentSystemPrompt } from './config';
+import type { AgentPersona } from '../personas';
 
 // Web search tool definition for OpenAI function calling
 const WEB_SEARCH_TOOL: LLMTool = {
@@ -90,13 +92,13 @@ export function formatMessagesForClaude(
   if (context.roundNumber === 1 && messages.length === 0) {
     messages.push({
       role: 'user',
-      content: `Please begin the discussion on: "${context.topic}"\n\nShare your perspective on this topic, and feel free to use web search to support your arguments.`,
+      content: `Please begin the discussion on: "${context.topic}"\n\nShare your perspective on this topic. Keep it natural and conversational - you're talking to real people here.`,
     });
   } else if (messages.length === 0) {
     // Subsequent rounds start with a prompt to continue
     messages.push({
       role: 'user',
-      content: `Round ${context.roundNumber} is beginning. Please continue the discussion on: "${context.topic}"\n\nBuild upon the previous rounds and share your ${context.roundNumber === 2 ? 'next thoughts' : 'continued perspective'}.`,
+      content: `Round ${context.roundNumber}. Continue the discussion on: "${context.topic}"\n\nRespond naturally to what others have said. Don't repeat your old points - move the conversation forward.`,
     });
   }
 
@@ -155,8 +157,15 @@ export async function executeAgentTurn(
   }
 
   try {
-    // Build system prompt with language instruction
-    let systemPrompt = agent.persona;
+    // Build system prompt using the agent's persona and the topic
+    const agentPersona: AgentPersona = {
+      name: agent.name,
+      description: '', // Not needed for the prompt
+      systemPrompt: agent.persona,
+    };
+    let systemPrompt = buildAgentSystemPrompt(agentPersona, context.topic);
+
+    // Add language instruction
     if (language === 'zh') {
       systemPrompt += '\n\nIMPORTANT: You MUST respond in Chinese (中文). All your responses should be in Chinese, including analysis, arguments, and conclusions.';
     } else if (language === 'en') {
@@ -314,6 +323,7 @@ export async function executeAgentTurnSimple(
     agent,
     context,
     apiKey,
+    undefined, // language - use default
     (chunk) => {
       content += chunk;
     },

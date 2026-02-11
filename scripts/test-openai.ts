@@ -21,7 +21,7 @@ async function testOpenAI() {
         const stream = streamChatCompletion(messages);
 
         for await (const chunk of stream) {
-            if (chunk.type === 'content_delta') {
+            if (chunk.type === 'content_delta' && chunk.delta) {
                 process.stdout.write(chunk.delta);
                 fullResponse += chunk.delta;
             } else if (chunk.type === 'error') {
