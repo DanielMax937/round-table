@@ -40,6 +40,7 @@ model RoundTable {
   rounds         Round[]
   moeVoteJob     MoeVoteJob?
   discussionJob  DiscussionJob?
+  scene          Scene?
 }
 
 model MoeVoteJob {
@@ -148,7 +149,68 @@ model DiscussionJob {
   createdAt    DateTime @default(now())
   startedAt    DateTime?
   completedAt  DateTime?
-  
+
   @@index([status])
   @@index([createdAt])
+}
+
+model Movie {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("active") // "active" | "archived"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  characters Character[]
+  scenes     Scene[]
+}
+
+model Character {
+  id               String   @id @default(cuid())
+  movieId          String
+  name             String
+  backstory        String
+  personalityTraits String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  movie           Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  sceneCharacters SceneCharacter[]
+
+  @@index([movieId])
+}
+
+model Scene {
+  id              String   @id @default(cuid())
+  movieId         String
+  sceneNumber     Int
+  heading         String
+  description     String
+  status          String   @default("active") // "active" | "finalized"
+  finalizedScript String?
+  maxRounds       Int      @default(10)
+  roundTableId    String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  movie           Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  roundTable      RoundTable       @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  sceneCharacters SceneCharacter[]
+
+  @@index([movieId])
+}
+
+model SceneCharacter {
+  id          String @id @default(cuid())
+  sceneId     String
+  characterId String
+  order       Int
+
+  scene     Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, characterId])
+  @@index([sceneId])
+  @@index([characterId])
 }
