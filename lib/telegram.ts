@@ -5,8 +5,29 @@
  */
 
 import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { telegramLogger as log } from '@/lib/logger';
 
 const MAX_MESSAGE_LENGTH = 4096;
+const TELEGRAM_LOG_FILE = path.join(process.cwd(), 'logs', 'telegram.log');
+
+/** 写入 Telegram 专用日志文件，便于统计与 DB 对话数核对 */
+function writeTelegramLog(action: string, meta?: Record<string, unknown>): void {
+  try {
+    const logDir = path.dirname(TELEGRAM_LOG_FILE);
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const line =
+      JSON.stringify({
+        time: new Date().toISOString(),
+        action,
+        ...meta,
+      }) + '\n';
+    fs.appendFileSync(TELEGRAM_LOG_FILE, line, 'utf8');
+  } catch {
+    // 静默失败，不干扰主流程
+  }
+}
 
 function loadConfig(): {
   botToken: string;
@@ -29,14 +50,21 @@ function loadConfig(): {
 export async function sendTextToTelegram(text: string): Promise<boolean> {
   const { botToken, chatId, proxy, disabled } = loadConfig();
   if (disabled === 'true' || disabled === '1' || disabled === 'yes') {
-    console.log('[Telegram] Disabled by TELEGRAM_DISABLED, skip send');
+    log.info({ skip: true }, 'Disabled by TELEGRAM_DISABLED');
+    writeTelegramLog('skipped', { reason: 'TELEGRAM_DISABLED' });
     return false;
   }
   if (!botToken || !chatId) {
-    console.warn('[Telegram] CTI_TG_BOT_TOKEN or CTI_TG_CHAT_ID not configured, skip send');
+    log.warn('CTI_TG_BOT_TOKEN or CTI_TG_CHAT_ID not configured');
+    writeTelegramLog('skipped', { reason: 'config_missing' });
     return false;
   }
-  console.log('[Telegram] Sending...', proxy ? `(proxy: ${proxy})` : '(no proxy)');
+  log.info({ proxy: proxy || null }, 'Sending...');
+  writeTelegramLog('sending', {
+    proxy: proxy || null,
+    textPreview: text.slice(0, 80).replace(/\n/g, ' '),
+    textLength: text.length,
+  });
 
   const chunks: string[] = [];
   for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
@@ -66,12 +94,16 @@ export async function sendTextToTelegram(text: string): Promise<boolean> {
       });
       const data = JSON.parse(out) as { ok?: boolean };
       if (!data?.ok) {
-        console.warn('[Telegram] sendMessage failed:', JSON.stringify(data).slice(0, 200));
+        log.warn({ response: JSON.stringify(data).slice(0, 200) }, 'sendMessage failed');
+        writeTelegramLog('failed', { response: JSON.stringify(data).slice(0, 200) });
         return false;
       }
-      console.log('[Telegram] ✓ Sent');
+      log.info('✓ Sent');
+      writeTelegramLog('sent', { textLength: chunk.length });
     } catch (err) {
-      console.warn('[Telegram] send error:', err instanceof Error ? err.message : err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      log.warn({ err: errMsg }, 'send error');
+      writeTelegramLog('error', { err: errMsg });
       return false;
     }
   }
@@ -92,7 +124,8 @@ export async function sendScriptToTelegramSeparateDialogues(
   const { intro, dialogues } = parseScreenplayDialogue(script);
 
   const total = (intro.trim() ? 1 : 0) + dialogues.length;
-  console.log(`[Telegram] 解析到 ${dialogues.length} 条对话，共需发送 ${total} 条消息`);
+  log.info({ dialogues: dialogues.length, total }, '解析到对话，共需发送消息');
+  writeTelegramLog('script_parse', { dialogues: dialogues.length, total });
 
   let sent = 0;
   let failed = 0;
@@ -111,9 +144,11 @@ export async function sendScriptToTelegramSeparateDialogues(
     if (ok) sent++;
     else failed++;
     if ((i + 1) % 5 === 0 || i === dialogues.length - 1) {
-      console.log(`[Telegram] 对话进度 ${i + 1}/${dialogues.length}`);
+      log.info({ progress: `${i + 1}/${dialogues.length}` }, '对话进度');
+      writeTelegramLog('script_progress', { progress: `${i + 1}/${dialogues.length}` });
     }
   }
-  console.log(`[Telegram] 完成: 成功 ${sent} 条，失败 ${failed} 条`);
+  log.info({ sent, failed }, '完成');
+  writeTelegramLog('script_done', { sent, failed, total });
 }
 

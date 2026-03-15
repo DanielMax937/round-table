@@ -95,3 +95,49 @@ function parseCharacterState(json: string | null | undefined): CharacterState | 
     return null;
   }
 }
+
+/**
+ * Director generates a scene summary BEFORE agents speak.
+ * Describes what happens and each character's expected behavior for agents to reference.
+ */
+export async function generateDirectorSceneSummary(
+  input: DirectorActorInput
+): Promise<string> {
+  const prompt = buildDirectorSummaryPrompt(input);
+  const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
+  const result = await chatCompletion(messages, { temperature: 0.7, maxTokens: 800 });
+  return result.trim();
+}
+
+function buildDirectorSummaryPrompt(input: DirectorActorInput): string {
+  let p = `你是一位专业电影导演。在演员（角色）开始即兴表演前，你需要先给出这场戏的「场景概要」，指导演员把握方向。
+
+# 电影
+${input.movieTitle}
+
+# 场景
+**${input.sceneHeading}**
+${input.contentSummary}
+
+# 情感目标
+${input.emotionalGoal}
+
+# 剧情背景
+${input.plotSummary || '（故事开端）'}
+
+# 本场角色
+`;
+  for (const c of input.characters) {
+    p += `- ${c.name}：${c.personalityTraits}${c.surfaceGoal ? `，本场目标：${c.surfaceGoal}` : ''}\n`;
+  }
+
+  p += `
+
+# 输出要求
+请用中文写一段「场景概要」（200-400字），包含：
+1. **场景大概内容**：这一场发生了什么、主要冲突或看点
+2. **每个人的大概表现**：每个角色在本场的态度、情绪、行为倾向（各1-2句）
+
+直接输出概要文本，不要用 markdown 标题，不要写「场景概要：」等前缀。`;
+  return p;
+}

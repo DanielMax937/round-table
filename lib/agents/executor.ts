@@ -90,18 +90,23 @@ export function formatMessagesForClaude(
 
   // Add initial prompt for the first round
   const isScene = context.topic.includes('[Scene');
+  const hasDirectorSummary = context.topic.includes('[导演场景概要]');
   if (context.roundNumber === 1 && messages.length === 0) {
     messages.push({
       role: 'user',
       content: isScene
-        ? `请开始表演这场戏。根据场景描述和情感目标，以角色身份说出你的第一句台词。保持自然、简短（1-3句）。\n\n${context.topic}`
+        ? (hasDirectorSummary
+            ? `请开始表演这场戏。**务必参考上方的导演场景概要**，把握本场走向和你角色的表现方向，以角色身份说出第一句台词。保持自然、简短（1-3句）。\n\n${context.topic}`
+            : `请开始表演这场戏。根据场景描述和情感目标，以角色身份说出你的第一句台词。保持自然、简短（1-3句）。\n\n${context.topic}`)
         : `Please begin the discussion on: "${context.topic}"\n\nShare your perspective on this topic. Keep it natural and conversational - you're talking to real people here.`,
     });
   } else if (messages.length === 0) {
     messages.push({
       role: 'user',
       content: isScene
-        ? `第 ${context.roundNumber} 轮。根据之前的对话继续表演，自然回应其他角色。\n\n${context.topic}`
+        ? (hasDirectorSummary
+            ? `第 ${context.roundNumber} 轮。**参考导演场景概要**，根据之前的对话继续表演，自然回应其他角色。\n\n${context.topic}`
+            : `第 ${context.roundNumber} 轮。根据之前的对话继续表演，自然回应其他角色。\n\n${context.topic}`)
         : `Round ${context.roundNumber}. Continue the discussion on: "${context.topic}"\n\nRespond naturally to what others have said. Don't repeat your old points - move the conversation forward.`,
     });
   }

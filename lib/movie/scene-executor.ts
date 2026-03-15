@@ -1,6 +1,6 @@
 /**
  * Execute scene dialogue via agents - each character generates their lines turn by turn.
- * Sends each line to Telegram as it's generated.
+ * Director sends scene summary first, then agents reference it when generating dialogue.
  */
 
 import { getSceneWithDialogue, updateScene } from '@/lib/db/scenes';
@@ -11,6 +11,8 @@ import { createMessage, getAllMessagesForRoundTable } from '@/lib/db/messages';
 import { executeRound } from '@/lib/agents/orchestrator';
 import { synthesizeScript } from './synthesizer';
 import { sendTextToTelegram } from '@/lib/telegram';
+import { generateDirectorSceneSummary } from './director-actor';
+import type { DirectorActorInput } from './director-actor';
 
 export interface ExecuteSceneResult {
   sceneId: string;
@@ -19,7 +21,7 @@ export interface ExecuteSceneResult {
 }
 
 /**
- * Execute scene: run agent rounds, send each line to Telegram, synthesize to screenplay.
+ * Execute scene: Director summary first, then agent rounds. Each line sent to Telegram.
  */
 export async function executeSceneWithAgents(
   sceneId: string,
@@ -45,6 +47,32 @@ export async function executeSceneWithAgents(
     await sendTextToTelegram(options.header).catch(() => {});
   }
 
+  // Director: generate scene summary before agents speak
+  const directorInput: DirectorActorInput = {
+    movieTitle: scene.movie.title,
+    sceneHeading: scene.heading,
+    contentSummary: scene.contentSummary || scene.description,
+    emotionalGoal: scene.emotionalGoal || '',
+    plotSummary: scene.movie.plotSummary || '',
+    characters: scene.sceneCharacters.map((sc) => ({
+      id: sc.character.id,
+      name: sc.character.name,
+      backstory: sc.character.backstory,
+      personalityTraits: sc.character.personalityTraits,
+      surfaceGoal: sc.character.surfaceGoal,
+      deepMotivation: sc.character.deepMotivation,
+      fatalFlaw: sc.character.fatalFlaw,
+      signatureLanguageStyle: sc.character.signatureLanguageStyle,
+      currentStateJson: sc.character.currentStateJson,
+    })),
+  };
+
+  const directorSummary = await generateDirectorSceneSummary(directorInput);
+  await sendTextToTelegram(`🎬 导演场景概要\n\n${directorSummary}`).catch(() => {});
+  await updateScene(sceneId, { contextJson: JSON.stringify({ directorSummary }) });
+
+  const topicWithDirector = `[导演场景概要]\n${directorSummary}\n\n---\n\n${roundTable.topic}`;
+
   let totalMessages = 0;
 
   for (let roundNum = 1; roundNum <= roundTable.maxRounds; roundNum++) {
@@ -61,7 +89,7 @@ export async function executeSceneWithAgents(
 
     const roundResult = await executeRound(
       agents,
-      roundTable.topic,
+      topicWithDirector,
       roundNumber,
       previousMessages,
       { apiKey, language: 'zh', toolsEnabled: false }
