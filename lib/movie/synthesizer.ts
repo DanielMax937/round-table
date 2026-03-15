@@ -1,4 +1,4 @@
-import { streamChatCompletion } from '@/lib/llm/client';
+import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
 
 export interface ScriptSynthesisInput {
@@ -9,48 +9,21 @@ export interface ScriptSynthesisInput {
   messages: Array<{ characterName: string; content: string; roundNumber: number }>;
 }
 
-export type ScriptEvent =
-  | { type: 'finalize-start'; data: { timestamp: Date } }
-  | { type: 'chunk'; data: { chunk: string; timestamp: Date } }
-  | { type: 'finalize-complete'; data: { fullContent: string; timestamp: Date } }
-  | { type: 'error'; data: { error: string; timestamp: Date } };
-
-export async function* synthesizeScript(
+/**
+ * Synthesize improvised dialogue into screenplay format.
+ * Non-streaming: returns full content when complete.
+ */
+export async function synthesizeScript(
   input: ScriptSynthesisInput
-): AsyncGenerator<ScriptEvent> {
+): Promise<{ fullContent: string }> {
   if (!input.messages.length) {
-    yield { type: 'error', data: { error: 'No dialogue to finalize', timestamp: new Date() } };
-    return;
+    throw new Error('No dialogue to finalize');
   }
 
-  yield { type: 'finalize-start', data: { timestamp: new Date() } };
-
-  try {
-    const prompt = buildScriptPrompt(input);
-    const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
-    const stream = streamChatCompletion(messages, { temperature: 0.7 });
-
-    let fullContent = '';
-
-    for await (const chunk of stream) {
-      if (chunk.type === 'content_delta' && chunk.delta) {
-        fullContent += chunk.delta;
-        yield { type: 'chunk', data: { chunk: chunk.delta, timestamp: new Date() } };
-      } else if (chunk.type === 'error') {
-        throw new Error(chunk.error || 'LLM streaming error');
-      }
-    }
-
-    yield { type: 'finalize-complete', data: { fullContent, timestamp: new Date() } };
-  } catch (error) {
-    yield {
-      type: 'error',
-      data: {
-        error: `Script finalization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date(),
-      },
-    };
-  }
+  const prompt = buildScriptPrompt(input);
+  const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
+  const fullContent = await chatCompletion(messages, { temperature: 0.7 });
+  return { fullContent: fullContent.trim() };
 }
 
 function buildScriptPrompt(input: ScriptSynthesisInput): string {
@@ -84,6 +57,7 @@ function buildScriptPrompt(input: ScriptSynthesisInput): string {
   prompt += `5. Keep the essence and personality of each character's lines\n`;
   prompt += `6. You may condense, reorder, or polish lines for dramatic effect\n`;
   prompt += `7. Output clean screenplay text — no markdown headers or code blocks`;
+  prompt += `\n8. **Language**: 所有旁白、场景描述、动作说明、角色对话统一使用中文。`;
 
   return prompt;
 }

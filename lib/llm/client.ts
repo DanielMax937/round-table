@@ -46,6 +46,33 @@ export function createLLMClient(config?: Partial<LLMConfig>): OpenAI {
 }
 
 /**
+ * Non-streaming chat completion (for generators that need full response)
+ */
+export async function chatCompletion(
+    messages: LLMMessage[],
+    options: {
+        client?: OpenAI;
+        model?: string;
+        temperature?: number;
+        maxTokens?: number;
+    } = {}
+): Promise<string> {
+    const client = options.client || createLLMClient();
+    const config = getLLMConfig();
+    const model = options.model || config.model;
+
+    const response = await client.chat.completions.create({
+        model,
+        messages: messages.map(m => ({ role: m.role, content: m.content })) as any,
+        temperature: options.temperature ?? 0.8,
+        max_tokens: options.maxTokens ?? 4096,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    return content?.trim() ?? '';
+}
+
+/**
  * Stream chat completion from OpenAI with optional function calling
  */
 export async function* streamChatCompletion(

@@ -25,6 +25,8 @@ export interface RoundExecutionOptions {
   onEvent?: (event: OrchestratorEvent) => void;
   apiKey: string;
   language?: 'en' | 'zh';
+  /** When false, agents have no tools (for scene dialogue) */
+  toolsEnabled?: boolean;
 }
 
 export async function executeRound(
@@ -57,7 +59,10 @@ export async function executeRound(
       agent,
       context,
       options.apiKey,
-      options.language,
+      {
+        language: options.language,
+        toolsEnabled: options.toolsEnabled ?? true,
+      },
       (chunk) => {
         // Stream chunks to client
         options.onEvent?.({
@@ -156,7 +161,10 @@ export async function executeSingleAgent(
     agent,
     context,
     options.apiKey,
-    options.language,
+    {
+      language: options.language,
+      toolsEnabled: options.toolsEnabled ?? true,
+    },
     (chunk) => {
       options.onEvent?.({
         type: 'chunk',

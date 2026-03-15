@@ -8,7 +8,8 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { movieId } = await params;
-    const { name, backstory, personalityTraits } = await request.json();
+    const body = await request.json();
+    const { name, backstory, personalityTraits } = body;
 
     if (!name?.trim() || !backstory?.trim() || !personalityTraits?.trim()) {
       return NextResponse.json(
@@ -17,7 +18,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const character = await createCharacter(movieId, name, backstory, personalityTraits);
+    const character = await createCharacter(movieId, {
+      name,
+      backstory,
+      personalityTraits,
+      surfaceGoal: body.surfaceGoal,
+      deepMotivation: body.deepMotivation,
+      fatalFlaw: body.fatalFlaw,
+      signatureLanguageStyle: body.signatureLanguageStyle,
+    });
     return NextResponse.json({ character }, { status: 201 });
   } catch (error) {
     console.error('Error creating character:', error);

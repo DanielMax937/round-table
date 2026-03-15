@@ -60,6 +60,15 @@ export default function Navigation() {
                             Movies
                         </Link>
                         <Link
+                            href="/docs"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/docs')
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                                }`}
+                        >
+                            API Docs
+                        </Link>
+                        <Link
                             href="/personas"
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/personas')
                                     ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'

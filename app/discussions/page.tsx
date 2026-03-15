@@ -13,7 +13,7 @@ interface Discussion {
 }
 
 async function getDiscussions() {
-    const response = await fetch('http://localhost:3002/api/roundtable', {
+    const response = await fetch('http://localhost:8400/api/roundtable', {
         cache: 'no-store',
     });
     if (!response.ok) {

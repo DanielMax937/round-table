@@ -89,16 +89,20 @@ export function formatMessagesForClaude(
   }
 
   // Add initial prompt for the first round
+  const isScene = context.topic.includes('[Scene');
   if (context.roundNumber === 1 && messages.length === 0) {
     messages.push({
       role: 'user',
-      content: `Please begin the discussion on: "${context.topic}"\n\nShare your perspective on this topic. Keep it natural and conversational - you're talking to real people here.`,
+      content: isScene
+        ? `请开始表演这场戏。根据场景描述和情感目标，以角色身份说出你的第一句台词。保持自然、简短（1-3句）。\n\n${context.topic}`
+        : `Please begin the discussion on: "${context.topic}"\n\nShare your perspective on this topic. Keep it natural and conversational - you're talking to real people here.`,
     });
   } else if (messages.length === 0) {
-    // Subsequent rounds start with a prompt to continue
     messages.push({
       role: 'user',
-      content: `Round ${context.roundNumber}. Continue the discussion on: "${context.topic}"\n\nRespond naturally to what others have said. Don't repeat your old points - move the conversation forward.`,
+      content: isScene
+        ? `第 ${context.roundNumber} 轮。根据之前的对话继续表演，自然回应其他角色。\n\n${context.topic}`
+        : `Round ${context.roundNumber}. Continue the discussion on: "${context.topic}"\n\nRespond naturally to what others have said. Don't repeat your old points - move the conversation forward.`,
     });
   }
 
@@ -135,14 +139,22 @@ export function extractTextContent(
   return textBlocks.join('\n');
 }
 
+export interface ExecuteAgentTurnOptions {
+  language?: 'en' | 'zh';
+  toolsEnabled?: boolean;
+}
+
 export async function executeAgentTurn(
   agent: AgentModel,
   context: AgentContext,
   apiKey: string,
-  language?: 'en' | 'zh',
+  options: ExecuteAgentTurnOptions | 'en' | 'zh' = {},
   onChunk?: (chunk: string) => void,
   onToolCall?: (toolCall: ToolCall) => void
 ): Promise<{ content: string; toolCalls: ToolCall[]; citations: Array<{ url: string; title: string; usedInContext?: boolean }> }> {
+  const opts = typeof options === 'string' ? { language: options } : options;
+  const language = opts.language;
+  const toolsEnabled = opts.toolsEnabled ?? true;
 
   const formattedMessages = formatMessagesForClaude(context, agent.id);
   const toolCalls: ToolCall[] = [];
@@ -163,7 +175,7 @@ export async function executeAgentTurn(
       description: '', // Not needed for the prompt
       systemPrompt: agent.persona,
     };
-    let systemPrompt = buildAgentSystemPrompt(agentPersona, context.topic);
+    let systemPrompt = buildAgentSystemPrompt(agentPersona, context.topic, toolsEnabled);
 
     // Add language instruction
     if (language === 'zh') {
@@ -177,11 +189,11 @@ export async function executeAgentTurn(
       { role: 'user', content: promptContent },
     ];
 
-    // Log whether tools are enabled
-    console.log(`[Agent ${agent.name}] Starting turn with web_search tool enabled`);
+    const tools = toolsEnabled ? [WEB_SEARCH_TOOL] : [];
+    console.log(`[Agent ${agent.name}] Starting turn${tools.length ? ' with web_search tool' : ' (no tools)'}`);
 
-    // First call - may result in tool calls
-    let stream = streamChatCompletion(messages, { tools: [WEB_SEARCH_TOOL] });
+    // First call - may result in tool calls when tools enabled
+    let stream = streamChatCompletion(messages, { tools });
     let pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
 
     for await (const chunk of stream) {
@@ -275,7 +287,7 @@ export async function executeAgentTurn(
 
       // Continue conversation after tool calls
       console.log(`[Agent ${agent.name}] Continuing after tool calls...`);
-      stream = streamChatCompletion(messages, { tools: [WEB_SEARCH_TOOL] });
+      stream = streamChatCompletion(messages, { tools });
 
       for await (const chunk of stream) {
         if (chunk.type === 'content_delta' && chunk.delta) {

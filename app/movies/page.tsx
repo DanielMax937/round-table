@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 async function getMovies() {
   try {
-    const response = await fetch('http://localhost:3002/api/movies', { cache: 'no-store' });
+    const response = await fetch('http://localhost:8400/api/movies', { cache: 'no-store' });
     if (!response.ok) return [];
     const data = await response.json();
     return data.movies || [];
@@ -21,12 +21,20 @@ export default async function MoviesPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Movies</h1>
-          <Link
-            href="/movies/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            + New Movie
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/movies/new/ai"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              + AI 剧本创作
+            </Link>
+            <Link
+              href="/movies/new"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              + New Movie
+            </Link>
+          </div>
         </div>
 
         {movies.length === 0 ? (

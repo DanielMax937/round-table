@@ -155,28 +155,56 @@ model DiscussionJob {
 }
 
 model Movie {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  status      String   @default("active") // "active" | "archived"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  title              String
+  description        String?
+  status             String   @default("active") // "active" | "archived"
+  theme              String?  // User input theme (e.g. 赛博朋克、复仇、爱情喜剧)
+  storyProposalJson  String?  // Selected story proposal: { oneLiner, coreConflict, styleReference, synopsis }
+  storyProposalsJson String?  // All 3 proposals before selection
+  plotSummary        String?  // Accumulated plot summary across scenes
+  workflowPhase      String   @default("theme") // theme|proposals|story_confirmed|characters|outline|scene_execution|completed
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  characters Character[]
-  scenes     Scene[]
+  characters   Character[]
+  scenes       Scene[]
+  sceneOutlines SceneOutline[]
 }
 
 model Character {
-  id               String   @id @default(cuid())
-  movieId          String
-  name             String
-  backstory        String
-  personalityTraits String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  movieId               String
+  name                  String
+  backstory             String
+  personalityTraits     String
+  surfaceGoal           String?  // 表层目标
+  deepMotivation        String?  // 深层动机
+  fatalFlaw             String?  // 致命弱点
+  signatureLanguageStyle String? // 标志性语言风格
+  currentStateJson      String?  // { emotionalState, physicalState, knowledge[] } - updated per scene
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   movie           Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
   sceneCharacters SceneCharacter[]
+
+  @@index([movieId])
+}
+
+model SceneOutline {
+  id               String   @id @default(cuid())
+  movieId          String
+  sortOrder        Int
+  title            String
+  contentSummary   String
+  emotionalGoal    String
+  characterIdsJson String   // JSON array of character IDs
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  movie Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  scene Scene?
 
   @@index([movieId])
 }
@@ -187,15 +215,21 @@ model Scene {
   sceneNumber     Int
   heading         String
   description     String
-  status          String   @default("active") // "active" | "finalized"
+  status          String   @default("active") // "outline"|"ready"|"draft"|"confirmed"|"finalized"
   finalizedScript String?
   maxRounds       Int      @default(10)
   roundTableId    String   @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  contentSummary  String?
+  emotionalGoal   String?
+  contextJson     String?  // Scene context when entering (goal, character states)
+  settlementSummary String? // After scene: plot summary addition, character state updates
+  sceneOutlineId String?   @unique // Link to SceneOutline if created from outline
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  movie           Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  roundTable      RoundTable       @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  movie          Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  roundTable     RoundTable       @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
+  sceneOutline   SceneOutline?    @relation(fields: [sceneOutlineId], references: [id])
   sceneCharacters SceneCharacter[]
 
   @@index([movieId])

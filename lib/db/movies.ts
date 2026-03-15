@@ -1,8 +1,19 @@
 import { prisma } from '../prisma';
 
-export async function createMovie(title: string, description?: string) {
+export interface CreateMovieData {
+  title: string;
+  description?: string;
+  theme?: string;
+}
+
+export async function createMovie(data: CreateMovieData) {
   return prisma.movie.create({
-    data: { title: title.trim(), description: description?.trim() || null },
+    data: {
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      theme: data.theme?.trim() || null,
+      workflowPhase: data.theme ? 'proposals' : 'theme',
+    },
   });
 }
 
@@ -15,6 +26,7 @@ export async function getMovieWithDetails(id: string) {
     where: { id },
     include: {
       characters: { orderBy: { createdAt: 'asc' } },
+      sceneOutlines: { orderBy: { sortOrder: 'asc' } },
       scenes: {
         orderBy: { sceneNumber: 'asc' },
         include: {
@@ -40,13 +52,30 @@ export async function getAllMovies() {
   });
 }
 
-export async function updateMovie(id: string, data: { title?: string; description?: string; status?: string }) {
+export async function updateMovie(
+  id: string,
+  data: {
+    title?: string;
+    description?: string;
+    status?: string;
+    theme?: string;
+    storyProposalJson?: string;
+    storyProposalsJson?: string;
+    plotSummary?: string;
+    workflowPhase?: string;
+  }
+) {
   return prisma.movie.update({
     where: { id },
     data: {
-      ...(data.title && { title: data.title.trim() }),
+      ...(data.title != null && { title: data.title.trim() }),
       ...(data.description !== undefined && { description: data.description?.trim() || null }),
-      ...(data.status && { status: data.status }),
+      ...(data.status != null && { status: data.status }),
+      ...(data.theme !== undefined && { theme: data.theme?.trim() || null }),
+      ...(data.storyProposalJson !== undefined && { storyProposalJson: data.storyProposalJson }),
+      ...(data.storyProposalsJson !== undefined && { storyProposalsJson: data.storyProposalsJson }),
+      ...(data.plotSummary !== undefined && { plotSummary: data.plotSummary }),
+      ...(data.workflowPhase != null && { workflowPhase: data.workflowPhase }),
     },
   });
 }

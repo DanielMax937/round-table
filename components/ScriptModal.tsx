@@ -60,36 +60,9 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
         throw new Error(errorData.error || 'Failed to finalize script');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) throw new Error('No response stream available');
-
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              const data = JSON.parse(line.slice(5).trim());
-              if (data.chunk) {
-                setScript(prev => prev + data.chunk);
-              } else if (data.error) {
-                setError(data.error);
-              }
-            } catch {
-              // skip unparseable lines
-            }
-          }
-        }
-      }
+      const data = await response.json();
+      if (data.fullContent) setScript(data.fullContent);
+      if (data.error) setError(data.error);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Unknown error');

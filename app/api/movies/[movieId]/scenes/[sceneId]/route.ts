@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSceneWithDialogue, deleteScene } from '@/lib/db/scenes';
+import { getSceneWithDialogue, deleteScene, updateScene } from '@/lib/db/scenes';
 
 interface RouteParams {
   params: Promise<{ movieId: string; sceneId: string }>;
@@ -7,10 +7,10 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { sceneId } = await params;
+    const { movieId, sceneId } = await params;
     const scene = await getSceneWithDialogue(sceneId);
 
-    if (!scene) {
+    if (!scene || scene.movieId !== movieId) {
       return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
     }
 
@@ -18,6 +18,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching scene:', error);
     return NextResponse.json({ error: 'Failed to fetch scene' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { movieId, sceneId } = await params;
+    const scene = await getSceneWithDialogue(sceneId);
+    if (!scene || scene.movieId !== movieId) {
+      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+    }
+    const body = await request.json();
+    const data: { finalizedScript?: string; status?: string } = {};
+    if (body.finalizedScript != null) data.finalizedScript = body.finalizedScript;
+    if (body.status != null) data.status = body.status;
+    const updated = await updateScene(sceneId, data);
+    return NextResponse.json({ scene: updated });
+  } catch (error) {
+    console.error('Error updating scene:', error);
+    return NextResponse.json(
+      { error: 'Failed to update scene' },
+      { status: 500 }
+    );
   }
 }
 

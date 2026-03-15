@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
+    "dev": "NODE_OPTIONS='--no-experimental-webstorage' next dev -p 8400",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,12 +13,16 @@
     "test:blog": "tsx scripts/test-blog-synthesis.ts",
     "test:websearch-enhanced": "tsx scripts/test-websearch-enhanced.ts",
     "test:moe-vote": "tsx scripts/test-moe-vote.ts",
+    "test:ai-movie": "vitest run app/api/movies/__tests__/ai-movie-api.test.ts",
+    "seed:rebirth-drama": "tsx scripts/seed-rebirth-drama.ts",
+    "workflow": "tsx scripts/script-workflow.ts",
     "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
   },
   "dependencies": {
     "@next/swc-darwin-arm64": "^16.1.1",
     "@prisma/client": "^5.22.0",
     "dotenv": "^17.2.3",
+    "https-proxy-agent": "^8.0.0",
     "next": "^15.3.2",
     "openai": "^4.77.0",
     "p-limit": "^7.2.0",
@@ -28,12 +32,14 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "swagger-ui-react": "^5.32.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "19.2.8",
     "@types/react-dom": "^19",
+    "@types/swagger-ui-react": "^5.18.0",
     "@vitest/ui": "^4.0.16",
     "autoprefixer": "^10.4.23",
     "eslint": "^9",

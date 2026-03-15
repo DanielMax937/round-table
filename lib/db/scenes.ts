@@ -142,6 +142,90 @@ export async function updateSceneFinalizedScript(id: string, script: string) {
   });
 }
 
+export async function updateScene(
+  id: string,
+  data: {
+    finalizedScript?: string;
+    status?: string;
+    contextJson?: string | null;
+    settlementSummary?: string | null;
+  }
+) {
+  return prisma.scene.update({
+    where: { id },
+    data: {
+      ...(data.finalizedScript !== undefined && { finalizedScript: data.finalizedScript }),
+      ...(data.status != null && { status: data.status }),
+      ...(data.contextJson !== undefined && { contextJson: data.contextJson }),
+      ...(data.settlementSummary !== undefined && { settlementSummary: data.settlementSummary }),
+    },
+  });
+}
+
+/** Default rounds for agent-based scene dialogue (each round = each character speaks once) */
+const SCENE_DEFAULT_MAX_ROUNDS = 12;
+
+/** Create Scene from SceneOutline with agents for turn-by-turn dialogue generation */
+export async function createSceneFromOutline(
+  movieId: string,
+  sceneOutlineId: string,
+  outline: { title: string; contentSummary: string; emotionalGoal: string; characterIds: string[] }
+) {
+  const sceneNumber = await getNextSceneNumber(movieId);
+
+  return prisma.$transaction(async (tx) => {
+    const characters = await tx.character.findMany({
+      where: { id: { in: outline.characterIds }, movieId },
+    });
+    const charOrder = new Map(outline.characterIds.map((id, i) => [id, i]));
+    const sortedChars = [...characters].sort((a, b) => (charOrder.get(a.id) ?? 99) - (charOrder.get(b.id) ?? 99));
+
+    const agentsData = sortedChars.map((char, index) => ({
+      name: char.name,
+      persona: buildCharacterSystemPrompt(char, outline.title, outline.contentSummary),
+      order: index + 1,
+    }));
+
+    const topic = `[Scene ${sceneNumber}] ${outline.title}\n\n${outline.contentSummary}\n\n情感目标: ${outline.emotionalGoal}\n\n请以角色身份表演这场戏，根据对话自然推进。`;
+
+    const roundTable = await tx.roundTable.create({
+      data: {
+        topic,
+        agentCount: agentsData.length,
+        maxRounds: SCENE_DEFAULT_MAX_ROUNDS,
+        status: 'active',
+        language: 'zh',
+        agents: { create: agentsData },
+      },
+    });
+
+    const scene = await tx.scene.create({
+      data: {
+        movieId,
+        sceneNumber,
+        heading: outline.title,
+        description: outline.contentSummary,
+        contentSummary: outline.contentSummary,
+        emotionalGoal: outline.emotionalGoal,
+        sceneOutlineId,
+        status: 'draft',
+        roundTableId: roundTable.id,
+        maxRounds: SCENE_DEFAULT_MAX_ROUNDS,
+      },
+    });
+
+    await tx.sceneCharacter.createMany({
+      data: outline.characterIds.map((charId, i) => ({
+        sceneId: scene.id,
+        characterId: charId,
+        order: i + 1,
+      })),
+    });
+
+    return scene;
+  });
+}
+
 export async function deleteScene(id: string) {
   const scene = await prisma.scene.findUnique({
     where: { id },

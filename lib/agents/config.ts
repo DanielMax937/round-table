@@ -4,11 +4,17 @@ import { AgentPersona } from '../types';
 
 /**
  * Build a system prompt for an agent based on their persona and the topic
+ * @param toolsEnabled - when false, omit web search instructions (for scene dialogue)
  */
-export function buildAgentSystemPrompt(persona: AgentPersona, topic: string): string {
+export function buildAgentSystemPrompt(
+  persona: AgentPersona,
+  topic: string,
+  toolsEnabled: boolean = true
+): string {
   const basePrompt = persona.systemPrompt;
 
-  const contextPrompt = `
+  const contextPrompt = toolsEnabled
+    ? `
 # Discussion Topic
 You are participating in a round table discussion on the following topic:
 
@@ -23,6 +29,15 @@ You are participating in a round table discussion on the following topic:
 
 # Your Role
 ${persona.description}
+`
+    : `
+# Scene Context
+${topic}
+
+# IMPORTANT - Remember:
+- Stay in character as ${persona.name}
+- Keep responses SHORT (1-3 sentences) - this is dialogue, not monologue
+- React naturally to what other characters said
 `;
 
   return `${basePrompt}\n\n${contextPrompt}`.trim();

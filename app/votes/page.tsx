@@ -85,7 +85,7 @@ export default function VotesPage() {
                             Create a vote job using the API:
                         </p>
                         <pre className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded text-left text-xs overflow-x-auto">
-                            {`curl -X POST http://localhost:3002/api/moe-vote \\
+                            {`curl -X POST http://localhost:8400/api/moe-vote \\
   -H "Content-Type: application/json" \\
   -d '{
     "question": "人工智能是否应该有道德规范？",

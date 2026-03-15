@@ -176,6 +176,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                       agentName: event.data.agentName,
                       timestamp: event.data.timestamp,
                     });
+
+                    // Send character dialogue to Telegram
+                    if (messageBuffer?.trim() && event.data.agentName) {
+                      const header = roundTable.topic
+                        ? `💬 ${event.data.agentName} · ${roundTable.topic} · Round ${roundNumber}`
+                        : `💬 ${event.data.agentName} · Round ${roundNumber}`;
+                      import('@/lib/telegram').then(({ sendTextToTelegram }) =>
+                        sendTextToTelegram(`${header}\n\n${messageBuffer}`).catch(() => {})
+                      );
+                    }
                     break;
 
                   case 'round-complete':
