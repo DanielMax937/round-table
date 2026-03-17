@@ -17,8 +17,8 @@
 ## 验证清单
 
 - [x] `npm run test:ai-movie` 通过
+- [x] 对照 MemOS 源码确认 API：`/product/add`、`/product/search`，使用 `writable_cube_ids`、`readable_cube_ids`（已替换弃用字段）
 - [ ] MemOS 服务运行后，执行场景验证 add/search 调用
-- [ ] 对照 MemOS 最新 API 文档确认 `/product/add`、`/product/search` 请求/响应格式
 
 ## 后续可选
 

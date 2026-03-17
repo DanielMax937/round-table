@@ -1,16 +1,16 @@
-/** MemOS REST API types - adapt to actual MemOS self-hosted response structure */
+/** MemOS REST API types - matches MemOS product_models (server_router) */
 
 export interface MemosAddMessageRequest {
   user_id: string;
-  mem_cube_id: string;
+  writable_cube_ids: string[];
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-  async_mode?: 'sync' | 'async';
+  async_mode: 'sync' | 'async';
 }
 
 export interface MemosSearchRequest {
   query: string;
   user_id: string;
-  mem_cube_id: string;
+  readable_cube_ids: string[];
 }
 
 /** Parsed memory item for prompt injection */

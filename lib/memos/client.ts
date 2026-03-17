@@ -45,7 +45,7 @@ export async function addMessage(
 
   const body: MemosAddMessageRequest = {
     user_id: characterId,
-    mem_cube_id: movieId,
+    writable_cube_ids: [movieId],
     messages,
     async_mode: 'sync',
   };
@@ -81,7 +81,7 @@ export async function searchMemory(
   const body: MemosSearchRequest = {
     query,
     user_id: characterId,
-    mem_cube_id: movieId,
+    readable_cube_ids: [movieId],
   };
 
   try {
