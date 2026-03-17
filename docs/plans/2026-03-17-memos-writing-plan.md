@@ -22,7 +22,7 @@ Phase 3: 集成（依赖 Phase 2）
     └── Step 3.3: scene-executor.ts — 构建并传入 movieContext
 
 Phase 4: 配置与文档（可并行）
-    └── Step 4.1: docker/docker-compose.memos.yml
+    └── Step 4.1: MemOS 部署（参见 MemOS 仓库）
     └── Step 4.2: .env.example 补充 MEMOS_*
     └── Step 4.3: README 更新
 ```
@@ -75,10 +75,10 @@ Phase 4: 配置与文档（可并行）
 - 构建 `movieContext`：movieId、characterIdByAgentId、sceneContext
 - 调用 `executeRound` 时传入 `movieContext`
 
-### Step 4.1 — docker/docker-compose.memos.yml
+### Step 4.1 — MemOS 部署
 
-- MemOS + Neo4j + Qdrant，端口 9005:8000
-- 需 MemOS 克隆至 `../MemOS`
+- MemOS 在独立仓库部署，参见 MemOS 仓库说明
+- round-table 通过 `MEMOS_BASE_URL` 连接（默认 `http://localhost:9005`）
 
 ### Step 4.2 — .env.example
 
@@ -97,7 +97,7 @@ Phase 4: 配置与文档（可并行）
 | Phase 1 | 单元测试或手动调用 `addMessage`、`searchMemory`（需 MemOS 运行） |
 | Phase 2 | TypeScript 编译通过 |
 | Phase 3 | `npm run test:ai-movie` 通过 |
-| Phase 4 | 文档可读、docker compose 可启动 |
+| Phase 4 | 文档可读 |
 | 端到端 | MemOS 运行后执行 AI Movie 场景，检查 add/search 日志 |
 
 ---

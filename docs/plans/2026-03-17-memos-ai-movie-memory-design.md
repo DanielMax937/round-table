@@ -183,7 +183,7 @@ movieContext?: {
 
 ### 6.1 MemOS 自托管
 
-在项目根目录 `docker/docker-compose.memos.yml` 提供 MemOS 启动配置，映射端口 9005，便于本地开发。实现时参考 MemOS 仓库 `docker/` 目录的 compose 配置。
+MemOS 部署参见其仓库说明。round-table 通过 `MEMOS_BASE_URL` 连接 MemOS API（默认 `http://localhost:9005`）。
 
 ### 6.2 依赖
 

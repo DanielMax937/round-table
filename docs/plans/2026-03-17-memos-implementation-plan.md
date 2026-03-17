@@ -12,7 +12,7 @@
 | 3 | 检索集成（executeAgentTurn 前） | `lib/agents/executor.ts` |
 | 4 | 写入集成（每句台词后） | `lib/agents/orchestrator.ts` |
 | 5 | scene-executor 传入 movieContext | `lib/movie/scene-executor.ts` |
-| 6 | Docker 与 env 配置 | `docker/docker-compose.memos.yml`, `.env.example` |
+| 6 | env 配置 | `.env.example` |
 
 ## 验证清单
 

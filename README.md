@@ -101,10 +101,7 @@ AI Movie 模块支持角色 Agent 的长期记忆，通过 [MemOS](https://githu
 
 ### MemOS 本地部署（可选）
 
-1. 克隆 MemOS：`git clone https://github.com/MemTensor/MemOS.git ../MemOS`
-2. 配置 MemOS：`cd ../MemOS && cp docker/.env.example .env`（填写 OPENAI_API_KEY 等）
-3. 启动：`docker compose -f docker/docker-compose.memos.yml up -d`
-4. 在 round-table `.env` 中配置：`MEMOS_BASE_URL=http://localhost:9005`
+参见 [MemOS 仓库](https://github.com/MemTensor/MemOS) 的部署说明。部署完成后，在 round-table `.env` 中配置 `MEMOS_BASE_URL`（默认 `http://localhost:9005`）。
 
 关闭 MemOS：设置 `MEMOS_ENABLED=false`，行为与改造前一致。
 

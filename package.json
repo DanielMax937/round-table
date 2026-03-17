@@ -14,6 +14,7 @@
     "test:websearch-enhanced": "tsx scripts/test-websearch-enhanced.ts",
     "test:moe-vote": "tsx scripts/test-moe-vote.ts",
     "test:ai-movie": "vitest run app/api/movies/__tests__/ai-movie-api.test.ts",
+    "test:memos": "vitest run lib/memos/__tests__/client.test.ts lib/agents/__tests__/memos-integration.test.ts",
     "seed:rebirth-drama": "tsx scripts/seed-rebirth-drama.ts",
     "workflow": "tsx scripts/script-workflow.ts",
     "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
