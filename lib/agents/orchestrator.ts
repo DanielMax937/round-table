@@ -3,6 +3,7 @@
 import { Agent as AgentModel, Round, Message } from '@prisma/client';
 import { executeAgentTurn, buildAgentContext } from './executor';
 import { ToolCall } from '../types';
+import type { MovieContext } from '../types';
 
 /**
  * Stream event data structure
@@ -27,6 +28,8 @@ export interface RoundExecutionOptions {
   language?: 'en' | 'zh';
   /** When false, agents have no tools (for scene dialogue) */
   toolsEnabled?: boolean;
+  /** MemOS context for AI Movie - enables search before turn, add after turn */
+  movieContext?: MovieContext;
 }
 
 export async function executeRound(
@@ -62,6 +65,7 @@ export async function executeRound(
       {
         language: options.language,
         toolsEnabled: options.toolsEnabled ?? true,
+        movieContext: options.movieContext,
       },
       (chunk) => {
         // Stream chunks to client
@@ -95,7 +99,29 @@ export async function executeRound(
       content,
       toolCalls,
       citations,
-    });
+    }    );
+
+    // MemOS: add character dialogue after each line (AI Movie only)
+    if (options.movieContext && content?.trim()) {
+      const characterId = options.movieContext.characterIdByAgentId[agent.id];
+      if (characterId && options.movieContext.sceneContext) {
+        const { addMessage, buildAddMessageUserContent } = await import('@/lib/memos/client');
+        const otherLines = currentRoundMessages.map((m) => ({
+          name: m.agent.name,
+          content: m.content || '',
+        }));
+        const userContent = buildAddMessageUserContent(
+          options.movieContext.sceneContext,
+          otherLines
+        );
+        await addMessage(characterId, options.movieContext.movieId, [
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: content.trim() },
+        ]);
+      } else if (!characterId) {
+        console.warn(`[MemOS] No characterId for agent ${agent.name}, skipping add_message`);
+      }
+    }
 
     // Create a temporary message object for context building
     const tempMessage = {
@@ -164,6 +190,7 @@ export async function executeSingleAgent(
     {
       language: options.language,
       toolsEnabled: options.toolsEnabled ?? true,
+      movieContext: options.movieContext,
     },
     (chunk) => {
       options.onEvent?.({

@@ -145,6 +145,17 @@ export interface AgentContext {
   currentRoundMessages: (Message & { agent: Agent })[];
 }
 
+/** MemOS integration context for AI Movie scene execution */
+export interface MovieContext {
+  movieId: string;
+  characterIdByAgentId: Record<string, string>;
+  sceneContext?: {
+    heading: string;
+    contentSummary: string;
+    emotionalGoal: string;
+  };
+}
+
 // MoeVote Job types
 export type MoeVoteJobStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type MoeVoteJobPhase = 'discussion' | 'voting' | 'aggregating';

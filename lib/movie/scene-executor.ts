@@ -87,12 +87,28 @@ export async function executeSceneWithAgents(
       agent: agents.find((a) => a.id === msg.agentId)!,
     }));
 
+    const characterIdByAgentId: Record<string, string> = {};
+    for (const sc of scene.sceneCharacters) {
+      const agent = agents.find((a) => a.name === sc.character.name);
+      if (agent) characterIdByAgentId[agent.id] = sc.character.id;
+    }
+
+    const movieContext = {
+      movieId: scene.movie.id,
+      characterIdByAgentId,
+      sceneContext: {
+        heading: scene.heading,
+        contentSummary: scene.contentSummary || scene.description || '',
+        emotionalGoal: scene.emotionalGoal || '',
+      },
+    };
+
     const roundResult = await executeRound(
       agents,
       topicWithDirector,
       roundNumber,
       previousMessages,
-      { apiKey, language: 'zh', toolsEnabled: false }
+      { apiKey, language: 'zh', toolsEnabled: false, movieContext }
     );
 
     // Save messages and send each line to Telegram

@@ -2,6 +2,7 @@
 
 import { Agent as AgentModel, Message } from '@prisma/client';
 import { AgentContext, ToolCall } from '../types';
+import type { MovieContext } from '../types';
 import { performWebSearch, formatSearchResults } from './tools/websearch';
 import { z } from 'zod';
 import { streamChatCompletion } from '@/lib/llm/client';
@@ -147,6 +148,7 @@ export function extractTextContent(
 export interface ExecuteAgentTurnOptions {
   language?: 'en' | 'zh';
   toolsEnabled?: boolean;
+  movieContext?: MovieContext;
 }
 
 export async function executeAgentTurn(
@@ -160,6 +162,7 @@ export async function executeAgentTurn(
   const opts = typeof options === 'string' ? { language: options } : options;
   const language = opts.language;
   const toolsEnabled = opts.toolsEnabled ?? true;
+  const movieContext = opts.movieContext;
 
   const formattedMessages = formatMessagesForClaude(context, agent.id);
   const toolCalls: ToolCall[] = [];
@@ -181,6 +184,30 @@ export async function executeAgentTurn(
       systemPrompt: agent.persona,
     };
     let systemPrompt = buildAgentSystemPrompt(agentPersona, context.topic, toolsEnabled);
+
+    // MemOS: inject character memories before turn (AI Movie only)
+    if (movieContext?.sceneContext) {
+      const characterId = movieContext.characterIdByAgentId[agent.id];
+      if (characterId) {
+        const { searchMemory, buildSearchQuery, formatMemoriesForPrompt } = await import(
+          '@/lib/memos/client'
+        );
+        const agentCount = Object.keys(movieContext.characterIdByAgentId).length;
+        const prevRoundMessages = context.previousMessages.slice(-agentCount);
+        const prevRoundSummary = prevRoundMessages
+          .map((m) => {
+            const c = (m.content || '').slice(0, 50);
+            return `${m.agent.name}: ${c}${(m.content?.length ?? 0) > 50 ? '...' : ''}`;
+          })
+          .join('; ');
+        const query = buildSearchQuery(movieContext.sceneContext, prevRoundSummary);
+        const memories = await searchMemory(characterId, movieContext.movieId, query);
+        const formatted = formatMemoriesForPrompt(memories);
+        if (formatted) {
+          systemPrompt += `\n\n# 角色记忆（与本场相关）\n<memories>\n${formatted}\n</memories>`;
+        }
+      }
+    }
 
     // Add language instruction
     if (language === 'zh') {
