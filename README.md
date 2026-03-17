@@ -92,6 +92,24 @@ round-table/
 - [ ] Real-time streaming
 - [ ] Testing
 
+## AI Movie & MemOS (Character Memory)
+
+AI Movie 模块支持角色 Agent 的长期记忆，通过 [MemOS](https://github.com/MemTensor/MemOS) 实现：
+
+- **检索**：每次生成台词前从 MemOS 检索相关记忆并注入 prompt
+- **写入**：每句台词生成后写入 MemOS
+
+### MemOS 本地部署（可选）
+
+1. 克隆 MemOS：`git clone https://github.com/MemTensor/MemOS.git ../MemOS`
+2. 配置 MemOS：`cd ../MemOS && cp docker/.env.example .env`（填写 OPENAI_API_KEY 等）
+3. 启动：`docker compose -f docker/docker-compose.memos.yml up -d`
+4. 在 round-table `.env` 中配置：`MEMOS_BASE_URL=http://localhost:9005`
+
+关闭 MemOS：设置 `MEMOS_ENABLED=false`，行为与改造前一致。
+
+设计文档：[docs/plans/2026-03-17-memos-ai-movie-memory-design.md](./docs/plans/2026-03-17-memos-ai-movie-memory-design.md)
+
 ## Design Documentation
 
 See [docs/plans/2025-12-28-round-table-design.md](./docs/plans/2025-12-28-round-table-design.md) for complete technical design.
