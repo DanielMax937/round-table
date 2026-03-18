@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+
+export const maxDuration = 600; // 10 min for scene generation (LLM multi-turn)
 import { getMovie } from '@/lib/db/movies';
 import { getSceneOutlinesByMovie } from '@/lib/db/scene-outlines';
 import { createSceneFromOutline } from '@/lib/db/scenes';

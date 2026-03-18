@@ -28,10 +28,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const body = scripts.join('\n\n');
     const fullScript = header + body;
 
-    return new Response(fullScript, {
+    const safeFilename = encodeURIComponent(
+      title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-') + '.txt'
+    );
+    const encodedBody = new TextEncoder().encode(fullScript);
+    return new Response(encodedBody, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-')}.txt"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${safeFilename}`,
       },
     });
   } catch (error) {

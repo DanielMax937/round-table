@@ -40,15 +40,17 @@ async function saveState(s: State) {
 async function fetchApi(
   method: string,
   path: string,
-  body?: object
+  body?: object,
+  timeoutMs?: number
 ): Promise<{ ok: boolean; data?: any; error?: string }> {
   const url = `${BASE}${path}`;
   const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
+  if (timeoutMs) opts.signal = AbortSignal.timeout(timeoutMs);
   try {
     const res = await fetch(url, opts);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: data.error || data.details || res.statusText };
+    if (!res.ok) return { ok: false, error: data.error || data.details || res.statusText, data };
     return { ok: true, data };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -73,6 +75,7 @@ async function main() {
   confirm-outline                       确认大纲
   status                                查看工作流状态
   execute-scene [N]                      执行下一场景 (N=outlineIndex，默认自动取下一个)
+  execute-all                            执行所有场景并自动 settle，直到完成
 
 流程: 创建主题 → 同意(生成提案) → 确认故事 → 同意(生成角色) → 同意(确认角色) → 同意(生成大纲) → 同意(确认大纲) → 场景执行
 
@@ -354,6 +357,94 @@ async function main() {
     if (data?.fullScript) console.log('   剧本预览:', data.fullScript.slice(0, 200) + '...');
     console.log('\n请审阅（Telegram 已推送）。可反馈重写或执行下一场景:');
     console.log('  npx tsx scripts/script-workflow.ts execute-scene');
+    return;
+  }
+
+  if (cmd === 'execute-all') {
+    const wRes = await fetchApi('GET', `/api/movies/${movieId}/workflow`);
+    if (!wRes.ok) {
+      console.error('获取工作流状态失败:', wRes.error);
+      process.exit(1);
+    }
+    const outlineCount = (wRes.data as { outlineCount?: number })?.outlineCount ?? 0;
+    const sceneCount = (wRes.data as { sceneCount?: number })?.sceneCount ?? 0;
+
+    if (outlineCount === 0) {
+      console.error('无大纲，请先生成并确认大纲');
+      process.exit(1);
+    }
+
+    console.log(`共 ${outlineCount} 个场景，已生成 ${sceneCount} 个。开始自动执行并 settle...\n`);
+
+    const SCENE_TIMEOUT_MS = 10 * 60 * 1000; // 10 min per scene (LLM multi-turn)
+    const MAX_RETRIES = 2;
+    for (let i = 0; i < outlineCount; i++) {
+      console.log(`\n--- 场景 ${i + 1}/${outlineCount} (outlineIndex=${i}) ---`);
+
+      let execRes = await fetchApi(
+        'POST',
+        `/api/movies/${movieId}/scenes/execute`,
+        { outlineIndex: i },
+        SCENE_TIMEOUT_MS
+      );
+      for (let retry = 0; retry < MAX_RETRIES && !execRes.ok && !execRes.data?.sceneId; retry++) {
+        const isRetryable = execRes.error?.includes('timeout') || execRes.error?.includes('fetch failed');
+        if (!isRetryable) break;
+        console.log(`   重试 ${retry + 1}/${MAX_RETRIES}...`);
+        await new Promise((r) => setTimeout(r, 5000));
+        execRes = await fetchApi(
+          'POST',
+          `/api/movies/${movieId}/scenes/execute`,
+          { outlineIndex: i },
+          SCENE_TIMEOUT_MS
+        );
+      }
+
+      let sceneId: string | undefined;
+      if (execRes.ok) {
+        sceneId = execRes.data?.sceneId;
+        console.log('✅ 场景已生成');
+      } else if (execRes.data?.sceneId) {
+        sceneId = execRes.data.sceneId;
+        console.log('⚠️ 场景已存在，尝试 settle');
+      } else {
+        console.error('❌ 场景生成失败:', execRes.error);
+        process.exit(1);
+      }
+
+      if (!sceneId) {
+        console.error('❌ 无法获取 sceneId');
+        process.exit(1);
+      }
+
+      let settleRes = await fetchApi('POST', `/api/movies/${movieId}/scenes/${sceneId}/settle`, {});
+      if (!settleRes.ok && settleRes.error?.includes('no script')) {
+        console.log('   场景无剧本，尝试 reexecute...');
+        const reexecRes = await fetchApi(
+          'POST',
+          `/api/movies/${movieId}/scenes/${sceneId}/reexecute`,
+          {},
+          SCENE_TIMEOUT_MS
+        );
+        if (!reexecRes.ok) {
+          console.error('❌ 重执行失败:', reexecRes.error);
+          process.exit(1);
+        }
+        console.log('✅ 场景已重执行');
+        settleRes = await fetchApi('POST', `/api/movies/${movieId}/scenes/${sceneId}/settle`, {});
+      }
+      if (!settleRes.ok) {
+        console.error('❌ 记忆结算失败:', settleRes.error);
+        process.exit(1);
+      }
+      console.log('✅ 记忆已结算');
+    }
+
+    const finalRes = await fetchApi('GET', `/api/movies/${movieId}/workflow`);
+    if (finalRes.ok && (finalRes.data as { canExport?: boolean })?.canExport) {
+      console.log('\n🎉 全部场景已完成，可导出:');
+      console.log(`   GET ${BASE}/api/movies/${movieId}/export`);
+    }
     return;
   }
 
