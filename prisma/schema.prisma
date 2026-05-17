@@ -170,6 +170,33 @@ model Movie {
   characters   Character[]
   scenes       Scene[]
   sceneOutlines SceneOutline[]
+  sceneExecutionJobs SceneExecutionJob[]
+  visualAssetJobs VisualAssetJob[]
+  videoGenerationJobs VideoGenerationJob[]
+  qualityReviewJobs QualityReviewJob[]
+  productionPipelineRuns ProductionPipelineRun[]
+}
+
+model ProductionPipelineRun {
+  id             String   @id @default(cuid())
+  status         String   @default("pending") // "pending"|"running"|"completed"|"failed"
+  movieId        String
+  level          String   // "quick"|"director"|"producer"
+  sceneIdsJson   String   @default("[]")
+  optionsJson    String   @default("{}")
+  resultJson     String?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+  @@index([level])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Character {
@@ -188,6 +215,7 @@ model Character {
 
   movie           Movie            @relation(fields: [movieId], references: [id], onDelete: Cascade)
   sceneCharacters SceneCharacter[]
+  visualAssetJobs VisualAssetJob[]
 
   @@index([movieId])
 }
@@ -205,8 +233,117 @@ model SceneOutline {
 
   movie Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
   scene Scene?
+  executionJobs SceneExecutionJob[]
 
   @@index([movieId])
+}
+
+model VisualAssetJob {
+  id             String   @id @default(cuid())
+  status         String   @default("pending") // "pending"|"running"|"completed"|"failed"
+  movieId        String
+  sceneId        String?
+  characterId    String?
+  assetType      String   // "comic"|"storyboard"|"character_look"|"keyframe"|"environment"
+  stylesJson     String   // JSON array, e.g. ["live_action","cg_animation"]
+  title          String
+  prompt         String   // English imagegen prompt
+  codexPrompt    String   // Chinese Codex prompt using imagegen
+  codexCommand   String   // Display command requested by user: codex -p "..."
+  executionCommand String? // Actual local CLI command used when run=true
+  result         String?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  movie     Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  scene     Scene?     @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  videoGenerationJobs VideoGenerationJob[]
+  qualityReviewJobs QualityReviewJob[]
+
+  @@index([movieId])
+  @@index([sceneId])
+  @@index([characterId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VideoGenerationJob {
+  id             String   @id @default(cuid())
+  status         String   @default("pending") // "pending"|"running"|"completed"|"failed"
+  movieId        String
+  sceneId        String?
+  visualAssetJobId String?
+  title          String
+  ratio          String   @default("16:9")
+  durationSeconds Int?
+  sourceImagePathsJson String @default("[]")
+  prompt         String   // English image-to-video / text-to-video prompt
+  doubaoInputJson String // JSON array item compatible with doubao-video-task
+  inputJsonPath  String?
+  doubaoCommand  String  // Display command for the external doubao runner
+  executionCommand String?
+  outputDir      String?
+  result         String?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  movie          Movie           @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  scene          Scene?          @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  visualAssetJob VisualAssetJob? @relation(fields: [visualAssetJobId], references: [id], onDelete: SetNull)
+  qualityReviewJobs QualityReviewJob[]
+
+  @@index([movieId])
+  @@index([sceneId])
+  @@index([visualAssetJobId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model QualityReviewJob {
+  id             String   @id @default(cuid())
+  status         String   @default("pending") // "pending"|"running"|"completed"|"failed"
+  movieId        String
+  targetType     String   // "script"|"visual_asset"|"video"
+  targetId       String
+  sceneId        String?
+  visualAssetJobId String?
+  videoGenerationJobId String?
+  title          String
+  score          Int?
+  aiFeel         String?
+  industryLevel  String?
+  passed         Boolean  @default(false)
+  summary        String?
+  issuesJson     String   @default("[]")
+  repairInstructions String?
+  resultJson     String?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  movie          Movie           @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  scene          Scene?          @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  visualAssetJob VisualAssetJob? @relation(fields: [visualAssetJobId], references: [id], onDelete: SetNull)
+  videoGenerationJob VideoGenerationJob? @relation(fields: [videoGenerationJobId], references: [id], onDelete: SetNull)
+
+  @@index([movieId])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([sceneId])
+  @@index([visualAssetJobId])
+  @@index([videoGenerationJobId])
+  @@index([status])
+  @@index([passed])
+  @@index([createdAt])
 }
 
 model Scene {
@@ -231,8 +368,43 @@ model Scene {
   roundTable     RoundTable       @relation(fields: [roundTableId], references: [id], onDelete: Cascade)
   sceneOutline   SceneOutline?    @relation(fields: [sceneOutlineId], references: [id])
   sceneCharacters SceneCharacter[]
+  executionJobs SceneExecutionJob[]
+  visualAssetJobs VisualAssetJob[]
+  videoGenerationJobs VideoGenerationJob[]
+  qualityReviewJobs QualityReviewJob[]
 
   @@index([movieId])
+}
+
+model SceneExecutionJob {
+  id             String   @id @default(cuid())
+  status         String   // "pending" | "running" | "completed" | "failed"
+  movieId        String
+  sceneOutlineId String?
+  sceneId        String?
+  outlineIndex   Int
+
+  currentRound     Int?
+  currentAgentName String?
+  currentPhase     String? // "queued"|"creating_scene"|"director"|"rounds"|"synthesizing"|"completed"
+
+  result         String? // JSON stringified { sceneId, fullScript, messageCount }
+  error          String?
+
+  createdAt      DateTime @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  updatedAt      DateTime @updatedAt
+
+  movie        Movie         @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  sceneOutline SceneOutline? @relation(fields: [sceneOutlineId], references: [id], onDelete: SetNull)
+  scene        Scene?        @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+
+  @@index([movieId])
+  @@index([sceneOutlineId])
+  @@index([sceneId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model SceneCharacter {

@@ -95,7 +95,7 @@ async function testAPIRoutes() {
     // Test 5: Start round (SSE stream) - but don't actually execute it
     console.log('✅ Test 5: Testing round endpoint (dry run)...');
     console.log(`   POST /api/roundtable/${roundTableId}/round`);
-    console.log(`   Note: Full round execution requires ANTHROPIC_API_KEY in .env\n`);
+    console.log(`   Note: Full round execution requires OPENAI_API_KEY in .env\n`);
 
     // Test 6: Error handling - get non-existent round table
     console.log('✅ Test 6: Testing error handling...');

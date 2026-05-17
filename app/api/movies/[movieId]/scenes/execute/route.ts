@@ -4,14 +4,63 @@ import { prisma } from '@/lib/prisma';
 export const maxDuration = 600; // 10 min for scene generation (LLM multi-turn)
 import { getMovie } from '@/lib/db/movies';
 import { getSceneOutlinesByMovie } from '@/lib/db/scene-outlines';
-import { createSceneFromOutline } from '@/lib/db/scenes';
-import { executeSceneWithAgents } from '@/lib/movie/scene-executor';
+import {
+  createSceneExecutionJob,
+  getActiveSceneExecutionJob,
+  getSceneExecutionJob,
+} from '@/lib/db/scene-execution-jobs';
+import { executeSceneJobInBackground } from '@/lib/movie/scene-execution-runner';
 
 interface RouteParams {
   params: Promise<{ movieId: string }>;
 }
 
-/** POST: Execute scene from outline (by outline index 0-based). Uses agents for turn-by-turn dialogue. */
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { movieId } = await params;
+    const { searchParams } = new URL(request.url);
+    const jobId = searchParams.get('jobId');
+
+    if (!jobId) {
+      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+    }
+
+    const job = await getSceneExecutionJob(jobId);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+    if (job.movieId !== movieId) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      job: {
+        id: job.id,
+        status: job.status,
+        movieId: job.movieId,
+        sceneOutlineId: job.sceneOutlineId,
+        sceneId: job.sceneId,
+        outlineIndex: job.outlineIndex,
+        currentRound: job.currentRound,
+        currentAgentName: job.currentAgentName,
+        currentPhase: job.currentPhase,
+        result: job.result ? JSON.parse(job.result) : null,
+        error: job.error,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching scene execution job:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch job', details: error instanceof Error ? error.message : 'Unknown' },
+      { status: 500 }
+    );
+  }
+}
+
+/** POST: Start async scene execution from outline (by outline index 0-based). */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { movieId } = await params;
@@ -29,18 +78,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
     }
 
-    const characterIds = JSON.parse(outline.characterIdsJson || '[]') as string[];
-    const characters = await prisma.character.findMany({
-      where: { id: { in: characterIds }, movieId },
-    });
-
-    if (characters.length === 0) {
-      return NextResponse.json(
-        { error: 'No valid characters for this scene' },
-        { status: 400 }
-      );
-    }
-
     const existingScene = await prisma.scene.findFirst({
       where: { sceneOutlineId: outline.id },
     });
@@ -51,22 +88,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const scene = await createSceneFromOutline(movieId, outline.id, {
-      title: outline.title,
-      contentSummary: outline.contentSummary,
-      emotionalGoal: outline.emotionalGoal,
-      characterIds: characters.map(c => c.id),
+    const activeJob = await getActiveSceneExecutionJob(movieId, outline.id);
+    if (activeJob) {
+      return NextResponse.json(
+        {
+          jobId: activeJob.id,
+          status: activeJob.status,
+          message: 'Scene execution is already running',
+        },
+        { status: 202 }
+      );
+    }
+
+    const job = await createSceneExecutionJob({
+      movieId,
+      sceneOutlineId: outline.id,
+      outlineIndex: index,
     });
 
-    const result = await executeSceneWithAgents(scene.id, {
-      header: `🎬 场景 ${index + 1} 已生成: ${outline.title}\n\n（角色逐句生成中，请留意 Telegram）\n\n请审阅。可反馈重写或确认进入下一场。`,
+    executeSceneJobInBackground(job.id).catch((error) => {
+      console.error(`Background scene execution job ${job.id} failed:`, error);
     });
 
     return NextResponse.json({
-      sceneId: result.sceneId,
-      fullScript: result.fullScript,
-      messageCount: result.messageCount,
-    });
+      jobId: job.id,
+      status: job.status,
+      message: 'Scene execution job created. Poll this endpoint with ?jobId=...',
+    }, { status: 202 });
   } catch (error) {
     console.error('Error executing scene:', error);
     return NextResponse.json(

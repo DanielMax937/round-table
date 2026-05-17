@@ -141,7 +141,7 @@ async function testAgentIntegration() {
     console.log('🎉 All agent integration tests passed!\n');
 
     console.log('📝 Note: Full agent execution requires:');
-    console.log('   1. Valid ANTHROPIC_API_KEY in .env');
+    console.log('   1. Valid OPENAI_API_KEY in .env');
     console.log('   2. Real integration test with API calls');
     console.log('   3. Actual web search API integration\n');
 

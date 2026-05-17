@@ -30,6 +30,8 @@ export interface RoundExecutionOptions {
   toolsEnabled?: boolean;
   /** MemOS context for AI Movie - enables search before turn, add after turn */
   movieContext?: MovieContext;
+  /** When false, reads memory but does not persist generated lines. */
+  memoryWriteEnabled?: boolean;
 }
 
 export async function executeRound(
@@ -102,7 +104,7 @@ export async function executeRound(
     }    );
 
     // MemOS: add character dialogue after each line (AI Movie only)
-    if (options.movieContext && content?.trim()) {
+    if (options.movieContext && options.memoryWriteEnabled !== false && content?.trim()) {
       const characterId = options.movieContext.characterIdByAgentId[agent.id];
       if (characterId && options.movieContext.sceneContext) {
         const { addMessage, buildAddMessageUserContent } = await import('@/lib/memos/client');
@@ -246,7 +248,7 @@ export function validateRoundExecution(
   }
 
   if (!apiKey || apiKey.trim().length === 0) {
-    return { valid: false, error: 'Anthropic API key is required' };
+    return { valid: false, error: 'OpenAI API key is required' };
   }
 
   return { valid: true };

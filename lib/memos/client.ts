@@ -11,9 +11,11 @@ import type {
 } from './types';
 
 const MAX_MEMORY_CHARS = 1500;
+const ADD_TIMEOUT_MS = 20000;
+const SEARCH_TIMEOUT_MS = 15000;
 
 function getBaseUrl(): string {
-  const url = process.env.MEMOS_BASE_URL || 'http://localhost:9005';
+  const url = process.env.MEMOS_BASE_URL || 'http://localhost:8000';
   return url.replace(/\/$/, '');
 }
 
@@ -47,7 +49,7 @@ export async function addMessage(
     user_id: characterId,
     writable_cube_ids: [movieId],
     messages,
-    async_mode: 'sync',
+    async_mode: 'async',
   };
 
   try {
@@ -55,7 +57,7 @@ export async function addMessage(
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(ADD_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -89,7 +91,7 @@ export async function searchMemory(
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -107,6 +109,28 @@ export async function searchMemory(
 
 function parseSearchResponse(data: MemosSearchResponse): MemosMemoryItem[] {
   const items: MemosMemoryItem[] = [];
+
+  const openSourceData = (data as any).data;
+  if (openSourceData?.text_mem && Array.isArray(openSourceData.text_mem)) {
+    for (const cube of openSourceData.text_mem) {
+      if (!Array.isArray(cube.memories)) continue;
+      for (const memory of cube.memories) {
+        const text = memory.memory ?? memory.metadata?.memory ?? memory.metadata?.key ?? '';
+        if (typeof text === 'string' && text.trim()) {
+          items.push({ text: text.trim(), type: 'fact' });
+        }
+      }
+    }
+  }
+
+  if (openSourceData?.act_mem && Array.isArray(openSourceData.act_mem)) {
+    for (const memory of openSourceData.act_mem) {
+      const text = memory.memory ?? memory.metadata?.memory ?? '';
+      if (typeof text === 'string' && text.trim()) {
+        items.push({ text: text.trim(), type: 'fact' });
+      }
+    }
+  }
 
   if (Array.isArray(data.memory_detail_list)) {
     for (const m of data.memory_detail_list) {

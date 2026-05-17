@@ -39,6 +39,39 @@ export async function getMovieWithDetails(id: string) {
           },
         },
       },
+      sceneExecutionJobs: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
+      visualAssetJobs: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          scene: { select: { heading: true, sceneNumber: true } },
+          character: { select: { name: true } },
+        },
+      },
+      videoGenerationJobs: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          scene: { select: { heading: true, sceneNumber: true } },
+          visualAssetJob: { select: { title: true, assetType: true } },
+        },
+      },
+      qualityReviewJobs: {
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+        include: {
+          scene: { select: { heading: true, sceneNumber: true } },
+          visualAssetJob: { select: { title: true, assetType: true } },
+          videoGenerationJob: { select: { title: true, ratio: true } },
+        },
+      },
+      productionPipelineRuns: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
     },
   });
 }

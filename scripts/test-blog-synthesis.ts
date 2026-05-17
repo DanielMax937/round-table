@@ -2,8 +2,8 @@ import { synthesizeBlogPost } from '../lib/blog/synthesizer';
 
 async function testSynthesis() {
   // Check for API key
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('Error: ANTHROPIC_API_KEY environment variable is not set.');
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('Error: OPENAI_API_KEY environment variable is not set.');
     console.error('Please set it in your .env file or export it in your shell.');
     process.exit(1);
   }
@@ -31,7 +31,7 @@ async function testSynthesis() {
 
   console.log('Starting synthesis...\n');
 
-  for await (const event of synthesizeBlogPost(input, process.env.ANTHROPIC_API_KEY)) {
+  for await (const event of synthesizeBlogPost(input, process.env.OPENAI_API_KEY)) {
     if (event.type === 'chunk') {
       process.stdout.write(event.data.chunk || '');
     } else {

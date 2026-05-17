@@ -23,13 +23,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const result = await executeSceneWithAgents(sceneId, {
-      header: `🎬 场景重执行: ${scene.heading}\n\n（角色逐句生成中）`,
+      header: `🎬 场景重执行已通过 LLM 编剧评审: ${scene.heading}\n\n请审阅。`,
     });
 
     return NextResponse.json({
       sceneId: result.sceneId,
       fullScript: result.fullScript,
       messageCount: result.messageCount,
+      review: result.review,
+      attempts: result.attempts,
+      repaired: result.repaired ?? false,
     });
   } catch (error) {
     console.error('Error re-executing scene:', error);

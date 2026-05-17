@@ -163,7 +163,10 @@ export async function updateScene(
 }
 
 /** Default rounds for agent-based scene dialogue (each round = each character speaks once) */
-const SCENE_DEFAULT_MAX_ROUNDS = 12;
+function getDefaultSceneMaxRounds(characterCount: number): number {
+  if (characterCount <= 2) return 3;
+  return 3;
+}
 
 /** Create Scene from SceneOutline with agents for turn-by-turn dialogue generation */
 export async function createSceneFromOutline(
@@ -186,13 +189,14 @@ export async function createSceneFromOutline(
       order: index + 1,
     }));
 
-    const topic = `[Scene ${sceneNumber}] ${outline.title}\n\n${outline.contentSummary}\n\n情感目标: ${outline.emotionalGoal}\n\n请以角色身份表演这场戏，根据对话自然推进。`;
+    const maxRounds = getDefaultSceneMaxRounds(agentsData.length);
+    const topic = `[Scene ${sceneNumber}] ${outline.title}\n\n${outline.contentSummary}\n\n情感目标: ${outline.emotionalGoal}\n\n请以角色身份表演这场戏，根据对话自然推进。每一轮都必须增加新的行动、信息、阻碍或关系变化；达到情感目标后收束，不要围绕同一观点循环。`;
 
     const roundTable = await tx.roundTable.create({
       data: {
         topic,
         agentCount: agentsData.length,
-        maxRounds: SCENE_DEFAULT_MAX_ROUNDS,
+        maxRounds,
         status: 'active',
         language: 'zh',
         agents: { create: agentsData },
@@ -210,7 +214,7 @@ export async function createSceneFromOutline(
         sceneOutlineId,
         status: 'draft',
         roundTableId: roundTable.id,
-        maxRounds: SCENE_DEFAULT_MAX_ROUNDS,
+        maxRounds,
       },
     });
 

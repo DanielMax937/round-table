@@ -45,9 +45,9 @@ export async function executeDiscussionJob(jobId: string): Promise<void> {
             throw new Error('No agents found for round table');
         }
 
-        const apiKey = process.env.ANTHROPIC_API_KEY;
+        const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
-            throw new Error('ANTHROPIC_API_KEY not configured');
+            throw new Error('OPENAI_API_KEY not configured');
         }
 
         // Execute rounds

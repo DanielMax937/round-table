@@ -33,6 +33,7 @@ describe('MemOS integration', () => {
     id: 'agent-1',
     name: 'Alice',
     persona: 'You are Alice.',
+    personaId: null,
     order: 1,
     roundTableId: 'rt-1',
   };

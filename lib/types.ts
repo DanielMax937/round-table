@@ -4,6 +4,7 @@ import { RoundTable, Agent, Round, Message as PrismaMessage } from '@prisma/clie
 
 // Prisma model types with relations
 export type { RoundTable, Agent, Round };
+export type AgentModel = Agent;
 
 // Message type with tool calls parsed from JSON
 export interface Message extends Omit<PrismaMessage, 'toolCalls'> {
@@ -149,10 +150,21 @@ export interface AgentContext {
 export interface MovieContext {
   movieId: string;
   characterIdByAgentId: Record<string, string>;
+  characterProfileByAgentId?: Record<string, {
+    name: string;
+    backstory: string;
+    personalityTraits?: string | null;
+    surfaceGoal?: string | null;
+    deepMotivation?: string | null;
+    fatalFlaw?: string | null;
+    signatureLanguageStyle?: string | null;
+    currentStateJson?: string | null;
+  }>;
   sceneContext?: {
     heading: string;
     contentSummary: string;
     emotionalGoal: string;
+    maxRounds?: number;
   };
 }
 
