@@ -281,6 +281,7 @@ async function generateVisualPromptWithLLM(input: {
         character.signatureLanguageStyle ? `Speech/behavior style: ${character.signatureLanguageStyle}` : '',
       ].filter(Boolean).join('\n')
     : '';
+  const assetSpecificGuidance = getVisualAssetPromptGuidance(input.assetType);
 
   const result = await chatCompletion(
     [
@@ -291,9 +292,14 @@ async function generateVisualPromptWithLLM(input: {
           'Generate the actual image prompt. Do not act as an agent, do not mention tools, and do not explain your reasoning.',
           'Use a structured, production-board prompt instead of prose: FORMAT, SUBJECTS, ENVIRONMENT, COMPOSITION, LIGHTING, CONTINUITY, NEGATIVE CONSTRAINTS.',
           'Make each module orthogonal: do not mix style, character identity, environment, camera, and action in the same sentence.',
+          'Adopt GPT-Image-2 prompt patterns: start with a concrete task verb, name what must be preserved, specify the exact layout, then describe visible surface details, lighting, typography policy, and exclusions.',
+          'For complex boards, use concise labeled blocks or JSON-like layout sections when that will lock panel order, section hierarchy, counts, and text placement more reliably than prose.',
+          'Treat exact counts as production constraints: panel count, character count, prop count, label count, section count, and object placement must be explicit; avoid vague words such as many or several when count matters.',
+          'Use spatial hierarchy deliberately: foreground, midground, background for single frames; top/middle/bottom, left/right, row/column, or named zones for boards.',
           'The prompt must be specific enough for a director, production designer, costume/makeup, and image model, while avoiding attention overload and visual mud.',
           'Avoid empty AI phrases such as cinematic, epic, high quality, stunning, masterpiece, film-production-grade, ultra realistic, beautiful lighting unless replaced by concrete camera, blocking, props, light source, costume, and spatial direction.',
           'Prefer one controllable shot or clearly separated board zones over overloaded compositions. Reduce hand/finger and text-rendering risk.',
+          'If text is useful for a storyboard, poster, comic, or board, specify the exact text, language, placement, hierarchy, and reserved negative space. Otherwise explicitly avoid random text.',
           'Output only the final English image prompt.',
         ].join('\n'),
       },
@@ -304,21 +310,29 @@ async function generateVisualPromptWithLLM(input: {
           story ? `Story context: ${truncate(story, 600)}` : '',
           `Requested asset: ${targetLabel}`,
           `Visual styles requested by user: ${input.styles.map(styleLabel).join(' + ')}`,
+          `Asset-specific requirements:\n${assetSpecificGuidance}`,
           sceneContext,
           characterContext,
           input.notes ? `User notes: ${input.notes}` : '',
           '',
           'Prompt requirements:',
           '- FORMAT: define exact asset type, aspect ratio, single frame or board grid, shot size, camera height, lens feel, and depth.',
+          '- LAYOUT LOCK: specify the exact grid/section structure, row/column order, named zones, panel count, section count, and where the dominant subject sits.',
           '- SUBJECTS: define only visible characters, identity anchors, wardrobe/grooming, posture, eyelines, and emotional pressure.',
           '- ENVIRONMENT: define spatial geography, foreground/midground/background, one practical light source, and 2-4 readable props.',
           '- COMPOSITION: preserve clear silhouettes, readable blocking, stable screen direction, and one dominant visual conflict.',
+          '- COUNTING DISCIPLINE: when the prompt requires panels, props, labels, swatches, expressions, badges, or repeated frames, give exact numbers and list them in order.',
+          '- SURFACE DETAILS: describe 3-5 concrete visible textures or materials that matter, such as fabric wrinkles, wet reflections, paper grain, glass glare, smoke, food steam, scuffed metal, or skin pores; do not create long texture lists.',
+          '- MOOD / FEEL: state the emotional atmosphere in one concise phrase, then support it with lighting, palette, posture, and set details.',
+          '- TEXT / TYPOGRAPHY POLICY: if the requested asset needs labels, title cards, poster copy, panel captions, or timing marks, write the exact text and where it appears; otherwise say no random text.',
           '- CONTINUITY: describe what must remain stable across later images/videos: face, hair, wardrobe, key prop, room layout, color temperature.',
+          '- REFERENCE PRESERVATION: treat the script, character profile, and prior scene description as the reference; name the identity, wardrobe, prop, geography, and color-temperature anchors to preserve.',
           '- SUBTRACTIVE CONTROL: remove decorative adjectives and redundant texture lists; keep only details that affect story, identity, blocking, or light.',
-          '- If this is a character look board, separate board zones as front view, side/profile cue, expression detail, wardrobe/material swatches, and one prop cue; do not create a collage of unrelated poses.',
-          '- If this is a storyboard or multi-panel image, label panels conceptually in the prompt and make every panel an independent shot source, not one fused image.',
+          '- If this is a character look board, separate board zones as front view, side/profile cue, back or 3/4 cue, expression row, wardrobe/material swatches, color palette, and one signature prop; preserve exact identity and do not create a collage of unrelated people.',
+          '- If this is a storyboard or multi-panel image, specify the exact number of panels, panel order, panel borders, titles/timestamps if needed, and one action beat per panel; make every panel an independent shot source, not one fused image.',
+          '- If this is an advertising/poster-like image, define WHAT, FEEL, SHOW, TYPOGRAPHY, and TECHNICAL treatment: hero subject, emotional sell, key visible moment, negative space, text hierarchy, camera/rendering style.',
           '- If this is a scene keyframe/environment/comic page, make it executable and not poster-like.',
-          '- NEGATIVE CONSTRAINTS: no subtitles, no watermark, no UI, no random text, no logos, no extra props, no extra fingers, no fused hands, no poster lighting.',
+          '- NEGATIVE CONSTRAINTS: no watermark, no unintended UI, no random text, no unwanted logos, no extra props, no extra fingers, no fused hands, no cropped panels, no unreadable required text, no poster lighting unless poster lighting is requested.',
         ].filter(Boolean).join('\n'),
       },
     ],
@@ -330,6 +344,53 @@ async function generateVisualPromptWithLLM(input: {
     throw new Error('LLM returned empty visual prompt');
   }
   return prompt;
+}
+
+function getVisualAssetPromptGuidance(assetType: VisualAssetType): string {
+  if (assetType === 'storyboard') {
+    return [
+      'This must be a storyboard sheet, not a single keyframe.',
+      'Use exactly 6 panels in a clean grid of 2 rows and 3 columns unless the user explicitly requests another count.',
+      'Lock panel order as Panel 1 establishing geography, Panel 2 character entrance or stance, Panel 3 conflict beat, Panel 4 prop/insert detail, Panel 5 reaction close-up, Panel 6 final emotional beat.',
+      'Each panel must have one shot source with shot size, camera height, lens feel, blocking, eyeline, and one concrete action beat.',
+      'Include small panel numbers and concise panel titles only if labels are requested or useful; otherwise reserve clean caption space without random text.',
+      'Keep the same characters, wardrobe, room geography, color temperature, and dominant prop across all panels.',
+    ].join('\n');
+  }
+  if (assetType === 'character_look') {
+    return [
+      'This must be a character reference / look-development board, not a scene keyframe.',
+      'Use separated zones for full-body front view, side/profile cue, back or 3/4 view, expression row with 4 subtle emotions, wardrobe/material swatches, color palette, and one signature prop.',
+      'Preserve a single coherent identity across every zone; do not invent multiple variants of the same person.',
+      'Use a neutral white or muted studio background so silhouette, wardrobe, material, hair, face, and prop details remain inspectable.',
+      'Use a clean production design layout with generous negative space and readable visual hierarchy.',
+    ].join('\n');
+  }
+  if (assetType === 'keyframe') {
+    return [
+      'This must be one strong scene keyframe, not a storyboard, poster, or collage.',
+      'Choose the most decisive emotional and visual beat from the scene.',
+      'Specify the chain as subject identity, pose/action, set geography, practical light source, lens/camera height, palette, and exact aspect ratio.',
+      'No captions, titles, labels, or marketing text unless the user explicitly asks for them.',
+    ].join('\n');
+  }
+  if (assetType === 'environment') {
+    return [
+      'This must be an environment / set design image focused on spatial geography.',
+      'Prioritize room layout, entrances/exits, practical light sources, set dressing, major props, texture, and camera-accessible blocking paths.',
+      'Use clear foreground/midground/background layers and, if it is a board, include exactly 3 sections: wide geography, conflict area, story-relevant detail.',
+      'Use labels only for doors, windows, light sources, or key props when the label improves production readability; otherwise use no text.',
+      'Characters may be absent or tiny scale references unless needed for spatial readability.',
+    ].join('\n');
+  }
+  if (assetType === 'comic') {
+    return [
+      'This must be a comic page with 4-6 readable panels, not a single illustration.',
+      'Each panel should carry one story beat with clear character blocking and expression.',
+      'Speech bubbles are optional; if used, keep them minimal and specify exact text only.',
+    ].join('\n');
+  }
+  return 'Use the requested asset type literally and avoid mixing it with unrelated board formats.';
 }
 
 function buildSceneVisualPrompt(
@@ -358,10 +419,10 @@ STORY CONTENT:
 ${sceneText}
 
 FORMAT:
-A single polished comic page with 4-6 panels, clear panel-to-panel storytelling, expressive acting, readable staging, cinematic composition, and no speech bubbles unless explicitly useful. Use panel variety: establishing shot, medium confrontation, reaction close-up, insert detail, final emotional beat.
+A single comic page with exactly 5 readable panels unless user notes request another count. Use fixed panel order: establishing geography, medium confrontation, reaction close-up, insert detail, final emotional beat. If speech bubbles are needed, include exact short text; otherwise no random text.
 
 VISUAL DIRECTION:
-Preserve character consistency, wardrobe logic, emotional continuity, location geography, and clear screen direction. Use concrete props, body language, eye lines, and social distance to show conflict instead of explanatory text.
+Preserve character consistency, wardrobe logic, emotional continuity, location geography, and clear screen direction. Use concrete props, body language, eye lines, foreground/midground/background layers, and social distance to show conflict instead of explanatory text.
 
 OUTPUT:
 High-detail production comic page, no watermark, no UI, no random text. ${notes || ''}`.trim();
@@ -378,7 +439,7 @@ SCENE:
 ${sceneText}
 
 FORMAT:
-Horizontal 16:9 storyboard sheet with 6 panels. Each panel must include a panel number, shot size, camera height, lens feel, character blocking, and one concrete action beat. Use: establishing geography, entrance/obstruction, over-the-shoulder conflict, insert prop, reaction close-up, final turning beat.
+Horizontal 16:9 storyboard sheet with exactly 6 panels in a clean grid of 2 rows and 3 columns. Lock panel order: Panel 1 establishing geography, Panel 2 entrance or stance, Panel 3 over-the-shoulder conflict, Panel 4 insert prop, Panel 5 reaction close-up, Panel 6 final turning beat. Each panel must include a panel number, shot size, camera height, lens feel, character blocking, eyeline, and one concrete action beat.
 
 CAMERA:
 Use director-readable shot design: specific foreground obstruction, eyeline direction, screen direction, axis continuity, distance between bodies, and practical light source. Avoid generic “cinematic” beauty; make every panel solve a staging problem for the scene.
@@ -397,13 +458,13 @@ SCENE CONTENT:
 ${sceneText}
 
 FORMAT:
-A 3-panel sequential environment board showing spatial reveal and camera progression through the location. Include a floor-plan-readable sense of entrances/exits, foreground/midground/background layers, practical light sources, working surfaces, prop clusters, and one story-relevant object that can be handled by an actor.
+A 3-panel sequential environment board with fixed sections: wide geography, conflict area, story-relevant detail. Include a floor-plan-readable sense of entrances/exits, foreground/midground/background layers, practical light sources, working surfaces, exactly 3 prop clusters, and 1 story-relevant object that can be handled by an actor. Use labels only for doors, windows, light sources, or the key prop.
 
 CAMERA:
 Frame 1: establishing geography. Frame 2: move closer to the conflict area. Frame 3: land on the detail that carries emotional pressure.
 
 OUTPUT:
-Film-production concept art board, high-budget visual development quality, no watermark, no random text. ${notes || ''}`.trim();
+Film-production set design board, no watermark, no random text, no decorative fake UI. ${notes || ''}`.trim();
   }
 
   return `Create one acted film still / keyframe for a decisive scene moment. Treat this as a photography setup for a real crew.
@@ -454,10 +515,10 @@ Fatal flaw: ${character.fatalFlaw || 'infer from story'}
 Signature speech / behavior: ${character.signatureLanguageStyle || 'infer from personality'}
 
 BOARD REQUIREMENTS:
-Create a clean casting/look board with separate, readable zones: full-body front view, 3/4 view, side silhouette, head close-up, expression study with 4 subtle emotional states, wardrobe/material callouts, key prop, and one in-world portrait. Keep all figures anatomically consistent and avoid crowding the page.
+Create a clean casting/look board with separate, readable zones: full-body front view, side/profile cue, back or 3/4 view, head close-up, expression row with exactly 4 subtle emotional states, wardrobe/material callouts, color palette, key prop, and one in-world portrait. Keep all figures anatomically consistent and avoid crowding the page.
 
 DESIGN RULES:
-The character must feel castable and playable, not generic. Define age signal, posture, face structure, hair, skin texture, hands, costume material, wear marks, personal grooming, and one prop with a practical use. If the character has a contradiction, show it visually with a concrete wardrobe or behavior detail instead of symbolic decoration.
+The character must feel castable and playable, not generic. Define age signal, posture, face structure, hair, skin texture, hands, costume material, wear marks, personal grooming, and one prop with a practical use. Use a neutral white or muted studio background so silhouette and material details are inspectable. If the character has a contradiction, show it visually with a concrete wardrobe or behavior detail instead of symbolic decoration.
 
 OUTPUT:
 Film look-development board usable by director, casting, costume, makeup, and image-to-video prompting. No watermark, no random text, no fake UI. ${notes || ''}`.trim();
@@ -470,6 +531,7 @@ function buildCodexImagePrompt(title: string, imagePrompt: string, styles: Visua
     '请直接生成图片，不要只返回文字说明。',
     '不要使用海报、宣传图、AI概念图套路；要像真实影视部门会拿去继续工作的剧照、分镜或美术参考。',
     '优先执行具体镜头、调度、光源、道具和人物状态，不要把“电影感、高级感、史诗感”当成画面内容。',
+    '如果 prompt 中出现精确数量、分区、文字或面板顺序，请严格按 prompt 执行，不要自行增加无关元素。',
     '图片生成 prompt 如下：',
     imagePrompt,
   ].join('\n\n');
