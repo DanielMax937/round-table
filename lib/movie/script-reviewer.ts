@@ -67,7 +67,7 @@ export async function repairSceneScript(
     model: config.model,
     messages: messages.map((m) => ({ role: m.role, content: m.content })) as any,
     temperature: 0.55,
-    max_tokens: 4096,
+    max_tokens: 8192,
   });
 
   return (response.choices[0]?.message?.content || '').trim();
@@ -121,7 +121,7 @@ export async function reviewSceneScript(
     model: config.model,
     messages: messages.map((m) => ({ role: m.role, content: m.content })) as any,
     temperature: 0.2,
-    max_tokens: 1600,
+    max_tokens: 4096,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || '';

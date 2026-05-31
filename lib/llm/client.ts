@@ -65,7 +65,7 @@ export async function chatCompletion(
         model,
         messages: messages.map(m => ({ role: m.role, content: m.content })) as any,
         temperature: options.temperature ?? 0.8,
-        max_tokens: options.maxTokens ?? 4096,
+        max_tokens: options.maxTokens ?? 8192,
     });
 
     const content = response.choices[0]?.message?.content;
@@ -106,7 +106,7 @@ export async function* streamChatCompletion(
                 ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
             })),
             temperature: options.temperature ?? 0.9, // Higher temperature for more natural, varied responses
-            max_tokens: options.maxTokens ?? 4096,
+            max_tokens: options.maxTokens ?? 8192,
             stream: true,
         };
 

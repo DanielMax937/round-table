@@ -20,6 +20,7 @@ import {
   type SceneScriptReviewInput,
   type SceneScriptReviewResult,
 } from './script-reviewer';
+import { reviewSubversive, type SubversiveReviewResult } from './subversive-reviewer';
 import { parseScreenplayDialogue } from './script-parser';
 
 export interface ExecuteSceneResult {
@@ -174,6 +175,22 @@ export async function executeSceneWithAgents(
     });
     lastReview = review;
 
+    // 颠覆审查：检查是否有意外转折、角色深度、反套路设计
+    let subversiveReview: SubversiveReviewResult | null = null;
+    if (review.passed) {
+      subversiveReview = await reviewSubversive({
+        movieTitle: scene.movie.title,
+        sceneHeading: scene.heading,
+        sceneDescription: scene.description,
+        script: fullContent,
+        characters: scene.sceneCharacters.map((sc) => ({
+          name: sc.character.name,
+          personalityTraits: sc.character.personalityTraits || undefined,
+          fatalFlaw: sc.character.fatalFlaw || undefined,
+        })),
+      });
+    }
+
     const context = {
       directorSummary,
       scriptReview: {
@@ -185,18 +202,40 @@ export async function executeSceneWithAgents(
         issues: review.issues,
         rewriteInstructions: review.rewriteInstructions,
       },
+      subversiveReview: subversiveReview ? {
+        passed: subversiveReview.passed,
+        score: subversiveReview.score,
+        surpriseLevel: subversiveReview.surpriseLevel,
+        summary: subversiveReview.summary,
+        issues: subversiveReview.issues,
+        suggestions: subversiveReview.suggestions,
+      } : null,
     };
     await updateScene(sceneId, { contextJson: JSON.stringify(context) });
 
-    if (!review.passed) {
-      reviewFeedback = formatReviewFeedback(review);
+    // 两个审查都必须通过
+    const scriptPassed = review.passed;
+    const subversivePassed = subversiveReview?.passed ?? false;
+    const allPassed = scriptPassed && subversivePassed;
+
+    if (!allPassed) {
+      // 合并两个审查的反馈
+      const feedbacks: string[] = [];
+      if (!scriptPassed) {
+        feedbacks.push(`【剧本审查】${formatReviewFeedback(review)}`);
+      }
+      if (!subversivePassed && subversiveReview) {
+        feedbacks.push(`【颠覆审查】${subversiveReview.summary}\n问题：${subversiveReview.issues.join('；')}\n建议：${subversiveReview.suggestions.join('；')}`);
+      }
+      reviewFeedback = feedbacks.join('\n\n');
+
       if (attempt < maxReviewAttempts) {
-        console.warn(`[Scene Review] Attempt ${attempt} failed; regenerating scene ${sceneId}`);
+        console.warn(`[Scene Review] Attempt ${attempt} failed (script:${scriptPassed}, subversive:${subversivePassed}); regenerating scene ${sceneId}`);
         continue;
       }
 
       if (!lastSceneWithMessages) {
-        throw new Error(`Scene script failed LLM review after ${attempt} attempt(s): ${reviewFeedback}`);
+        throw new Error(`Scene script failed review after ${attempt} attempt(s): ${reviewFeedback}`);
       }
 
       return await repairAndReviewFinalScript({

@@ -73,6 +73,9 @@ function buildScriptPrompt(input: ScriptSynthesisInput): string {
   prompt += `\n17. Avoid universal lesson lines such as “钱买不来爱/温暖/亲情”, “心里有她就好”, “别苛责自己”. If that meaning is needed, express it through a specific object or behavior.`;
   prompt += `\n18. Keep the final scene between 900 and 1600 Chinese characters unless the scene truly needs more.`;
   prompt += `\n19. Output clean screenplay text — no markdown headers or code blocks.`;
+  prompt += `\n20. **角色名必须使用剧本中提供的中文名**，不要翻译成英文或使用拼音。如果剧本中有英文名，直接保留原样。`;
+  prompt += `\n21. **禁止重复描写**：同一个场景内，不要重复使用相同的动作描写（如"手指颤抖"、"指尖冰凉"、"指节泛白"）。每个动作只出现一次，后续用完全不同的方式表达。`;
+  prompt += `\n22. **场景标题格式统一**：使用 "INT./EXT. 地点 - 时间" 格式，不要混用 "内景"、"外景" 等中文格式。`;
 
   return prompt;
 }

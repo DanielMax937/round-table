@@ -175,6 +175,7 @@ model Movie {
   videoGenerationJobs VideoGenerationJob[]
   qualityReviewJobs QualityReviewJob[]
   productionPipelineRuns ProductionPipelineRun[]
+  novelConversionJobs NovelConversionJob[]
 }
 
 model ProductionPipelineRun {
@@ -419,4 +420,25 @@ model SceneCharacter {
   @@unique([sceneId, characterId])
   @@index([sceneId])
   @@index([characterId])
+}
+
+model NovelConversionJob {
+  id              String    @id @default(cuid())
+  status          String    @default("pending") // "pending"|"running"|"completed"|"failed"
+  movieId         String
+  currentChapter  Int?      // Current chapter being processed
+  totalChapters   Int?      // Total number of chapters
+  chaptersJson    String?   // JSON array of {chapterNumber, title, content}
+  result          String?   // Full assembled novel text
+  error           String?
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+  @@index([status])
+  @@index([createdAt])
 }

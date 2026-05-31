@@ -36,7 +36,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'theme must be a string' }, { status: 400 });
     }
     await updateMovie(movieId, {
-      theme: theme.trim() || null,
+      theme: theme.trim() || undefined,
       workflowPhase: theme.trim() ? 'proposals' : movie.workflowPhase,
     });
     const updated = await getMovie(movieId);

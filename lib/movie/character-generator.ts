@@ -2,19 +2,25 @@ import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
 import type { StoryProposal, CharacterProfile } from './types';
 
-const PROMPT = `You are a professional screenwriter. Given a confirmed story proposal, generate 3-6 core character profiles that will drive the narrative.
+const PROMPT = `你是一位专业的编剧。根据已确认的故事提案，生成3-6个核心角色档案。
 
-For each character provide:
-1. **name**: Full character name
-2. **surfaceGoal**: What they outwardly want (concrete, plot-related)
-3. **deepMotivation**: Inner need or wound driving them
-4. **fatalFlaw**: Weakness that creates conflict or downfall
-5. **signatureLanguageStyle**: How they speak (vocabulary, rhythm, verbal tics)
-6. **backstory**: 2-4 sentences of background relevant to the story
-7. **personalityTraits**: 3-5 comma-separated traits (e.g. "cunning, paranoid, loyal")
+每个角色必须包含：
+1. **name**：中文全名（必须是地道的中文姓名，如"林宛"、"陈素芬"，不要用英文名、拼音或外国人名）
+2. **surfaceGoal**：表面目标（具体的、与剧情相关的）
+3. **deepMotivation**：深层动机（内心的伤痛或需求）
+4. **fatalFlaw**：致命缺陷（导致冲突或失败的性格弱点）
+5. **signatureLanguageStyle**：语言风格（说话习惯、口头禅、用词特点）
+6. **backstory**：2-4句背景故事
+7. **personalityTraits**：3-5个性格特征，逗号分隔
 
-Output ONLY valid JSON array. No markdown, no explanation.
-Format: [{"name":"...","surfaceGoal":"...","deepMotivation":"...","fatalFlaw":"...","signatureLanguageStyle":"...","backstory":"...","personalityTraits":"..."}, ...]`;
+严格要求：
+- 所有内容必须使用中文
+- 角色名必须是纯中文，不要出现英文
+- 每个角色的语言风格必须有明显差异，避免同质化
+- 性格特征要具体，不要用"善良、勇敢"这类空泛词汇
+
+只输出合法的 JSON 数组。不要 markdown，不要解释。
+格式: [{"name":"...","surfaceGoal":"...","deepMotivation":"...","fatalFlaw":"...","signatureLanguageStyle":"...","backstory":"...","personalityTraits":"..."}, ...]`;
 
 export async function generateCharactersFromStory(
   proposal: StoryProposal
@@ -29,7 +35,7 @@ Synopsis: ${proposal.synopsis}`;
     { role: 'user', content: context },
   ];
 
-  const raw = await chatCompletion(messages, { temperature: 0.8, maxTokens: 2048 });
+  const raw = await chatCompletion(messages, { temperature: 0.8, maxTokens: 8192 });
   const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
   const parsed = JSON.parse(cleaned) as CharacterProfile[];
 

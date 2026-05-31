@@ -54,3 +54,11 @@ round-table.log
 /tmp/
 /movie/
 /awesome-gpt-image-2-API-and-Prompts/
+output/
+
+# Novel generation intermediate files
+novel*_raw.txt
+novel*_converted.txt
+novel*_fixed.txt
+execute-scenes.sh
+fix_*.py

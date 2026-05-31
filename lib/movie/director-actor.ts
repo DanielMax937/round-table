@@ -34,56 +34,57 @@ export async function generateSceneWithDirector(
   const prompt = buildDirectorPrompt(input);
   const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
 
-  const fullScript = await chatCompletion(messages, { temperature: 0.8, maxTokens: 4096 });
+  const fullScript = await chatCompletion(messages, { temperature: 0.8, maxTokens: 8192 });
   return { fullScript: fullScript.trim() };
 }
 
 function buildDirectorPrompt(input: DirectorActorInput): string {
-  let p = `You are a professional film director and screenwriter. Write ONE complete scene in standard screenplay format.
+  let p = `你是一位专业电影导演和编剧。写一个完整的场景剧本。
 
-# Movie
+# 电影
 ${input.movieTitle}
 
-# Scene
+# 场景
 **${input.sceneHeading}**
 ${input.contentSummary}
 
-# Emotional Goal
+# 情感目标
 ${input.emotionalGoal}
 
-# Story So Far (Plot Summary)
-${input.plotSummary || '(Beginning of story)'}
+# 剧情背景
+${input.plotSummary || '（故事开端）'}
 
-# Characters in This Scene
+# 本场角色
 `;
   for (const c of input.characters) {
     const state = parseCharacterState(c.currentStateJson);
     p += `\n## ${c.name}\n`;
-    p += `- Backstory: ${c.backstory.substring(0, 150)}${c.backstory.length > 150 ? '...' : ''}\n`;
-    p += `- Personality: ${c.personalityTraits}\n`;
-    if (c.surfaceGoal) p += `- Surface goal: ${c.surfaceGoal}\n`;
-    if (c.deepMotivation) p += `- Deep motivation: ${c.deepMotivation}\n`;
-    if (c.fatalFlaw) p += `- Fatal flaw: ${c.fatalFlaw}\n`;
-    if (c.signatureLanguageStyle) p += `- Speech style: ${c.signatureLanguageStyle}\n`;
+    p += `- 背景：${c.backstory.substring(0, 150)}${c.backstory.length > 150 ? '...' : ''}\n`;
+    p += `- 性格：${c.personalityTraits}\n`;
+    if (c.surfaceGoal) p += `- 表面目标：${c.surfaceGoal}\n`;
+    if (c.deepMotivation) p += `- 深层动机：${c.deepMotivation}\n`;
+    if (c.fatalFlaw) p += `- 致命缺陷：${c.fatalFlaw}\n`;
+    if (c.signatureLanguageStyle) p += `- 语言风格：${c.signatureLanguageStyle}\n`;
     if (state) {
-      if (state.emotionalState) p += `- Current emotional state: ${state.emotionalState}\n`;
-      if (state.physicalState) p += `- Current physical state: ${state.physicalState}\n`;
-      if (state.knowledge?.length) p += `- Knowledge: ${state.knowledge.join('; ')}\n`;
+      if (state.emotionalState) p += `- 当前情感状态：${state.emotionalState}\n`;
+      if (state.physicalState) p += `- 当前身体状态：${state.physicalState}\n`;
+      if (state.knowledge?.length) p += `- 已知信息：${state.knowledge.join('；')}\n`;
     }
   }
 
   p += `
 
-# Instructions
-1. Start with a slug line (INT./EXT. LOCATION - TIME)
-2. Add brief action/description
-3. Format dialogue: CHARACTER NAME in caps, optional (parentheticals), then dialogue
-4. Add action beats between dialogue
-5. Achieve the emotional goal of this scene
-6. Keep each character's voice and personality
-7. Output clean screenplay text — no markdown, no code blocks
-8. End when the scene's conflict/beat is complete (typically 1-3 pages)
-9. **Language**: 所有旁白、场景描述、动作说明、角色对话统一使用中文。`;
+# 写作要求
+1. 以场景标题开头（INT./EXT. 地点 - 时间），地点使用中文
+2. 添加简要的动作/场景描写
+3. 对话格式：角色名大写，可选括号提示，然后是对话
+4. 在对话之间加入动作节拍
+5. 实现本场的情感目标
+6. 保持每个角色的声音和性格
+7. 输出干净的剧本文本——不要 markdown，不要代码块
+8. 当场景冲突完成时结束（通常1-3页）
+9. **语言**：所有旁白、场景描述、动作说明、角色对话统一使用中文，不要夹英文。
+10. **反重复**：同一场景内，不要重复使用相同的动作描写（如"手指颤抖"、"指尖冰凉"）。每个动作只出现一次。`;
   return p;
 }
 
@@ -105,7 +106,7 @@ export async function generateDirectorSceneSummary(
 ): Promise<string> {
   const prompt = buildDirectorSummaryPrompt(input);
   const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
-  const result = await chatCompletion(messages, { temperature: 0.7, maxTokens: 800 });
+  const result = await chatCompletion(messages, { temperature: 0.7, maxTokens: 4096 });
   return result.trim();
 }
 
