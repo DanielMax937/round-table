@@ -19,17 +19,27 @@ export default function VotesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const formatPhase = (phase?: string) => {
+        const phaseMap: Record<string, string> = {
+            discussion: '讨论中',
+            voting: '投票中',
+            aggregating: '汇总中',
+            completed: '已完成',
+        };
+        return phase ? phaseMap[phase] || phase : '-';
+    };
+
     useEffect(() => {
         const fetchVotes = async () => {
             try {
                 const response = await fetch('/api/moe-vote');
                 if (!response.ok) {
-                    throw new Error('Failed to fetch votes');
+                    throw new Error('加载投票任务失败');
                 }
                 const data = await response.json();
                 setVotes(data.jobs || []);
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'Unknown error');
+                setError(err instanceof Error ? err.message : '未知错误');
             } finally {
                 setLoading(false);
             }
@@ -44,7 +54,7 @@ export default function VotesPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading vote jobs...</p>
+                        <p className="mt-4 text-gray-600 dark:text-gray-400">正在加载投票任务...</p>
                     </div>
                 </div>
             </div>
@@ -56,7 +66,7 @@ export default function VotesPage() {
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-                        <h2 className="text-xl font-bold text-red-900 dark:text-red-300 mb-2">Error</h2>
+                        <h2 className="text-xl font-bold text-red-900 dark:text-red-300 mb-2">错误</h2>
                         <p className="text-red-700 dark:text-red-400">{error}</p>
                     </div>
                 </div>
@@ -69,20 +79,20 @@ export default function VotesPage() {
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        MoE Vote Results
+                        混合专家投票结果
                     </h1>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {votes.length} total vote{votes.length !== 1 ? 's' : ''}
+                        共 {votes.length} 个投票任务
                     </div>
                 </div>
 
                 {votes.length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
                         <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">
-                            No vote jobs yet.
+                            暂无投票任务。
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                            Create a vote job using the API:
+                            可通过 API 创建投票任务：
                         </p>
                         <pre className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded text-left text-xs overflow-x-auto">
                             {`curl -X POST http://localhost:8400/api/moe-vote \\
@@ -108,7 +118,7 @@ export default function VotesPage() {
                                                 {vote.question}
                                             </h2>
                                             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                                <span>👥 {vote.agentCount} agents</span>
+                                                <span>👥 {vote.agentCount} 个智能体</span>
                                                 <span>📅 {new Date(vote.createdAt).toLocaleString()}</span>
                                                 {vote.completedAt && (
                                                     <span>✓ {new Date(vote.completedAt).toLocaleString()}</span>
@@ -116,7 +126,7 @@ export default function VotesPage() {
                                             </div>
                                             {vote.currentRound && vote.currentPhase && (
                                                 <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    Round {vote.currentRound} • {vote.currentPhase}
+                                                    第 {vote.currentRound} 轮 · {formatPhase(vote.currentPhase)}
                                                 </div>
                                             )}
                                         </div>
@@ -131,7 +141,7 @@ export default function VotesPage() {
                                                                 : 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400'
                                                     }`}
                                             >
-                                                {vote.status.toUpperCase()}
+                                                {vote.status === 'completed' ? '已完成' : vote.status === 'failed' ? '失败' : vote.status === 'running' ? '运行中' : '等待中'}
                                             </span>
                                         </div>
                                     </div>

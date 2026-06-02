@@ -11,13 +11,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const movie = await getMovieWithDetails(movieId);
 
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     return NextResponse.json({ movie });
   } catch (error) {
     console.error('Error fetching movie:', error);
-    return NextResponse.json({ error: 'Failed to fetch movie' }, { status: 500 });
+    return NextResponse.json({ error: '获取电影项目失败' }, { status: 500 });
   }
 }
 
@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ movie });
   } catch (error) {
     console.error('Error updating movie:', error);
-    return NextResponse.json({ error: 'Failed to update movie' }, { status: 500 });
+    return NextResponse.json({ error: '更新电影项目失败' }, { status: 500 });
   }
 }
 
@@ -40,6 +40,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting movie:', error);
-    return NextResponse.json({ error: 'Failed to delete movie' }, { status: 500 });
+    return NextResponse.json({ error: '删除电影项目失败' }, { status: 500 });
   }
 }

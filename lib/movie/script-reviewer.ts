@@ -17,6 +17,7 @@ export interface SceneScriptReviewInput {
   sceneHeading: string;
   sceneDescription: string;
   emotionalGoal: string;
+  developmentContext?: string;
   characters: Array<{
     name: string;
     backstory: string;
@@ -160,6 +161,8 @@ ${input.sceneDescription}
 # 情感目标
 ${input.emotionalGoal || '(未填写)'}
 
+${input.developmentContext?.trim() ? `# 开发约束\n${input.developmentContext.trim()}\n` : ''}
+
 # 角色档案
 ${characterText}
 
@@ -175,6 +178,7 @@ ${input.script}
 3. 角色声音、经历、欲望、缺陷和处境是否匹配，有没有角色串味。
 4. 是否有清楚的戏剧推进：开场反应、冲突/信息/选择、收束或转折。
 5. 是否存在元叙事、英文夹杂、模板化比喻、过于工整的问答感。
+6. 是否落实开发约束中的不可改事实、角色规则、物件/空间母题、弧线目标和本场埋设/回收。
 
 # 输出 JSON 格式
 {
@@ -220,6 +224,8 @@ ${input.sceneDescription}
 
 # 情感目标
 ${input.emotionalGoal || '(未填写)'}
+
+${input.developmentContext?.trim() ? `# 开发约束\n${input.developmentContext.trim()}\n` : ''}
 
 # 角色档案
 ${characterText}

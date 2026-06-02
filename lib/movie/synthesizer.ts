@@ -1,5 +1,7 @@
 import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
+import type { DevelopmentReport, StoryBible } from './types';
+import { formatDevelopmentContext } from './development';
 
 export interface ScriptSynthesisInput {
   movieTitle: string;
@@ -8,6 +10,15 @@ export interface ScriptSynthesisInput {
   characters: Array<{ name: string; backstory: string }>;
   messages: Array<{ characterName: string; content: string; roundNumber: number }>;
   reviewFeedback?: string;
+  developmentReport?: DevelopmentReport | null;
+  storyBible?: StoryBible | null;
+  scenePlanning?: {
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  } | null;
 }
 
 /**
@@ -32,6 +43,10 @@ function buildScriptPrompt(input: ScriptSynthesisInput): string {
   prompt += `**Movie:** ${input.movieTitle}\n`;
   prompt += `**Scene:** ${input.sceneHeading}\n`;
   prompt += `**Description:** ${input.sceneDescription}\n\n`;
+  const planningContext = buildPlanningContext(input);
+  if (planningContext) {
+    prompt += `**Development Constraints:**\n${planningContext}\n\n`;
+  }
   if (input.reviewFeedback?.trim()) {
     prompt += `**Mandatory Previous Review Feedback To Fix:**\n${input.reviewFeedback.trim()}\n\n`;
   }
@@ -76,6 +91,23 @@ function buildScriptPrompt(input: ScriptSynthesisInput): string {
   prompt += `\n20. **角色名必须使用剧本中提供的中文名**，不要翻译成英文或使用拼音。如果剧本中有英文名，直接保留原样。`;
   prompt += `\n21. **禁止重复描写**：同一个场景内，不要重复使用相同的动作描写（如"手指颤抖"、"指尖冰凉"、"指节泛白"）。每个动作只出现一次，后续用完全不同的方式表达。`;
   prompt += `\n22. **场景标题格式统一**：使用 "INT./EXT. 地点 - 时间" 格式，不要混用 "内景"、"外景" 等中文格式。`;
+  prompt += `\n23. 必须落实开发约束中的不可改事实、弧线目标、埋设/回收和物件/空间母题；不要让角色直接解释这些设计。`;
 
   return prompt;
+}
+
+function buildPlanningContext(input: ScriptSynthesisInput): string {
+  const sceneParts = [
+    input.scenePlanning?.act ? `幕/阶段：${input.scenePlanning.act}` : null,
+    input.scenePlanning?.arcName ? `叙事弧线：${input.scenePlanning.arcName}` : null,
+    input.scenePlanning?.arcGoal ? `弧线目标：${input.scenePlanning.arcGoal}` : null,
+    input.scenePlanning?.setupPayoff ? `本场埋设/回收：${input.scenePlanning.setupPayoff}` : null,
+    input.scenePlanning?.requiredMotif ? `必须出现的物件/空间/动作：${input.scenePlanning.requiredMotif}` : null,
+  ].filter(Boolean);
+  const devContext = formatDevelopmentContext({
+    report: input.developmentReport,
+    bible: input.storyBible,
+    maxChars: 4000,
+  });
+  return [sceneParts.join('\n'), devContext].filter(Boolean).join('\n\n');
 }

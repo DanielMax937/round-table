@@ -21,14 +21,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const persona = await getPersonaById(id);
 
         if (!persona) {
-            return NextResponse.json({ error: 'Persona not found' }, { status: 404 });
+            return NextResponse.json({ error: '智能体人格不存在' }, { status: 404 });
         }
 
         return NextResponse.json({ persona });
     } catch (error) {
         console.error('Error fetching persona:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch persona' },
+            { error: '获取智能体人格失败' },
             { status: 500 }
         );
     }
@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     } catch (error) {
         console.error('Error updating persona:', error);
         return NextResponse.json(
-            { error: 'Failed to update persona' },
+            { error: '更新智能体人格失败' },
             { status: 500 }
         );
     }
@@ -82,14 +82,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         const success = await deletePersona(id);
 
         if (!success) {
-            return NextResponse.json({ error: 'Persona not found' }, { status: 404 });
+            return NextResponse.json({ error: '智能体人格不存在' }, { status: 404 });
         }
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting persona:', error);
         return NextResponse.json(
-            { error: 'Failed to delete persona' },
+            { error: '删除智能体人格失败' },
             { status: 500 }
         );
     }

@@ -162,6 +162,8 @@ model Movie {
   theme              String?  // User input theme (e.g. 赛博朋克、复仇、爱情喜剧)
   storyProposalJson  String?  // Selected story proposal: { oneLiner, coreConflict, styleReference, synopsis }
   storyProposalsJson String?  // All 3 proposals before selection
+  developmentReportJson String? // Screen reader / development report JSON
+  storyBibleJson    String?  // Canonical story bible / prompt pack JSON
   plotSummary        String?  // Accumulated plot summary across scenes
   workflowPhase      String   @default("theme") // theme|proposals|story_confirmed|characters|outline|scene_execution|completed
   createdAt          DateTime @default(now())
@@ -228,6 +230,11 @@ model SceneOutline {
   title            String
   contentSummary   String
   emotionalGoal    String
+  act              String?
+  arcName          String?
+  arcGoal          String?
+  setupPayoff      String?
+  requiredMotif    String?
   characterIdsJson String   // JSON array of character IDs
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

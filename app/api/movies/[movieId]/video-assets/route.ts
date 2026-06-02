@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching video generation jobs:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch video generation jobs', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '获取视频生成任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -46,6 +46,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const body = await request.json().catch(() => ({}));
     const videoRequest = normalizeVideoGenerationRequest(body);
+    if (videoRequest.run) {
+      const activeJob = await prisma.videoGenerationJob.findFirst({
+        where: { movieId, status: 'running' },
+        select: { id: true, title: true },
+      });
+      if (activeJob) {
+        return NextResponse.json(
+          { error: `已有视频任务运行中：${activeJob.title}。请等待它完成后再创建并执行新任务。` },
+          { status: 409 }
+        );
+      }
+    }
     const jobs = await createVideoGenerationJobs(movieId, videoRequest);
 
     return NextResponse.json({
@@ -58,7 +70,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error creating video generation jobs:', error);
     return NextResponse.json(
-      { error: 'Failed to create video generation jobs', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '创建视频生成任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -71,17 +83,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const jobId = typeof body.jobId === 'string' ? body.jobId : '';
     const profileIds = typeof body.profileIds === 'string' && body.profileIds.trim() ? body.profileIds.trim() : '1';
     if (!jobId) {
-      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      return NextResponse.json({ error: '任务 ID 为必填项' }, { status: 400 });
     }
 
     const job = await prisma.videoGenerationJob.findFirst({
       where: { id: jobId, movieId },
     });
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
     if (job.status === 'running') {
       return NextResponse.json({ job }, { status: 202 });
+    }
+
+    const activeJob = await prisma.videoGenerationJob.findFirst({
+      where: {
+        movieId,
+        status: 'running',
+        id: { not: job.id },
+      },
+      select: { id: true, title: true },
+    });
+    if (activeJob) {
+      return NextResponse.json(
+        { error: `已有视频任务运行中：${activeJob.title}。请等待它完成后再执行下一个。` },
+        { status: 409 }
+      );
     }
 
     executeVideoGenerationJob(job.id, profileIds).catch((error) => {
@@ -99,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error running video generation job:', error);
     return NextResponse.json(
-      { error: 'Failed to run video generation job', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '执行视频生成任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

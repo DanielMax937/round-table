@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
     await updateMovie(movieId, { workflowPhase: 'outline' });
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error confirming characters:', error);
     return NextResponse.json(
-      { error: 'Failed to confirm characters' },
+      { error: '确认角色失败' },
       { status: 500 }
     );
   }

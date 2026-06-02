@@ -11,13 +11,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const scene = await getSceneWithDialogue(sceneId);
 
     if (!scene || scene.movieId !== movieId) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
 
     return NextResponse.json({ scene });
   } catch (error) {
     console.error('Error fetching scene:', error);
-    return NextResponse.json({ error: 'Failed to fetch scene' }, { status: 500 });
+    return NextResponse.json({ error: '获取场景失败' }, { status: 500 });
   }
 }
 
@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { movieId, sceneId } = await params;
     const scene = await getSceneWithDialogue(sceneId);
     if (!scene || scene.movieId !== movieId) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
     const body = await request.json();
     const data: { finalizedScript?: string; status?: string } = {};
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error updating scene:', error);
     return NextResponse.json(
-      { error: 'Failed to update scene' },
+      { error: '更新场景失败' },
       { status: 500 }
     );
   }
@@ -50,6 +50,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting scene:', error);
-    return NextResponse.json({ error: 'Failed to delete scene' }, { status: 500 });
+    return NextResponse.json({ error: '删除场景失败' }, { status: 500 });
   }
 }

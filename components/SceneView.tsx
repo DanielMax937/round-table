@@ -77,8 +77,10 @@ export default function SceneView({
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [rounds, streamingContent]);
+    if (isStreaming || completedMessages.length > 0) {
+      scrollToBottom();
+    }
+  }, [isStreaming, streamingContent, completedMessages.length]);
 
   const startNextRound = async () => {
     if (isStreaming) return;
@@ -96,13 +98,13 @@ export default function SceneView({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to start round');
+        throw new Error(data.error || '启动新轮次失败');
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
-      if (!reader) throw new Error('No response body');
+      if (!reader) throw new Error('响应内容为空');
 
       let buffer = '';
       let currentEventType = '';
@@ -130,7 +132,7 @@ export default function SceneView({
 
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setIsStreaming(false);
       setCurrentAgent(null);
@@ -166,7 +168,7 @@ export default function SceneView({
         setStreamingToolCalls([]);
         break;
       case 'error':
-        setError(data.error || 'An error occurred');
+        setError(data.error || '发生错误');
         break;
     }
   };
@@ -180,13 +182,13 @@ export default function SceneView({
         <h1 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{sceneHeading}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-3">{sceneDescription}</p>
         <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-          <span>Round {currentRound} of {maxRounds}</span>
+          <span>第 {currentRound} / {maxRounds} 轮</span>
           <span>-</span>
           <span>{characters.map(c => c.name).join(', ')}</span>
           {finalizedScript && (
             <>
               <span>-</span>
-              <span className="text-green-600 dark:text-green-400 font-medium">Finalized</span>
+              <span className="text-green-600 dark:text-green-400 font-medium">已定稿</span>
             </>
           )}
         </div>
@@ -198,12 +200,33 @@ export default function SceneView({
         </div>
       )}
 
+      {finalizedScript && (
+        <section className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">终稿剧本</h2>
+            <button
+              type="button"
+              onClick={() => setShowScriptModal(true)}
+              disabled={isStreaming}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+            >
+              重新生成
+            </button>
+          </div>
+          <pre className="whitespace-pre-wrap font-mono text-sm leading-6 text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto">
+            {finalizedScript}
+          </pre>
+        </section>
+      )}
+
       {/* Dialogue Messages */}
-      <div className="space-y-4 mb-6">
+      <section className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">创作记录</h2>
+        <div className="space-y-4">
         {rounds.map(round => (
           <div key={round.id}>
             <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Round {round.roundNumber}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">第 {round.roundNumber} 轮</h3>
             </div>
             {round.messages.map(message => (
               <MessageBubble
@@ -221,7 +244,7 @@ export default function SceneView({
         {completedMessages.length > 0 && (
           <div>
             <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Round {currentRound + 1}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">第 {currentRound + 1} 轮</h3>
             </div>
             {completedMessages.map((msg, i) => (
               <MessageBubble
@@ -253,7 +276,8 @@ export default function SceneView({
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+        </div>
+      </section>
 
       {/* Controls */}
       <div className="sticky bottom-0 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4">
@@ -267,7 +291,7 @@ export default function SceneView({
                 : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
             }`}
           >
-            {isStreaming ? 'Dialogue in progress...' : `Continue Dialogue (Round ${currentRound + 1})`}
+            {isStreaming ? '对话进行中...' : `继续对话（第 ${currentRound + 1} 轮）`}
           </button>
 
           <button
@@ -275,7 +299,7 @@ export default function SceneView({
             disabled={isStreaming || rounds.length === 0}
             className="px-4 py-2 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
           >
-            Finalize Script
+            {finalizedScript ? '重新生成终稿剧本' : '生成终稿剧本'}
           </button>
         </div>
       </div>

@@ -54,11 +54,11 @@ export default function MessageBubble({
                 <span className="text-lg">🔍</span>
                 <div className="flex-1">
                   <p className="font-medium text-gray-700 dark:text-gray-300">
-                    Searched for: {toolCall.query}
+                    搜索：{toolCall.query}
                   </p>
                   {toolCall.results && toolCall.results.length > 0 && (
                     <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                      Found {toolCall.results.length} result{toolCall.results.length !== 1 ? 's' : ''}
+                      找到 {toolCall.results.length} 条结果
                     </div>
                   )}
                 </div>
@@ -71,7 +71,7 @@ export default function MessageBubble({
         {citations.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
             <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              📎 Sources Referenced:
+              📎 引用来源：
             </p>
             <div className="space-y-1">
               {citations.map((citation, index) => (
@@ -95,7 +95,7 @@ export default function MessageBubble({
         {isStreaming && (
           <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <span className="animate-pulse">●</span>
-            <span>Agent is responding...</span>
+            <span>智能体正在回复...</span>
           </div>
         )}
       </div>

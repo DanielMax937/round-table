@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const scenes = await getScenesByMovie(movieId);
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error exporting script:', error);
     return NextResponse.json(
-      { error: 'Failed to export', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '导出失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

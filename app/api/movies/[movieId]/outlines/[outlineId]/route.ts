@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { movieId, outlineId } = await params;
     const outline = await getSceneOutline(outlineId);
     if (!outline || outline.movieId !== movieId) {
-      return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景大纲不存在' }, { status: 404 });
     }
     return NextResponse.json({
       outline: {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching outline:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch outline' },
+      { error: '获取场景大纲失败' },
       { status: 500 }
     );
   }
@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { movieId, outlineId } = await params;
     const outline = await getSceneOutline(outlineId);
     if (!outline || outline.movieId !== movieId) {
-      return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景大纲不存在' }, { status: 404 });
     }
     const body = await request.json();
     const data: Record<string, unknown> = {};
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error updating outline:', error);
     return NextResponse.json(
-      { error: 'Failed to update outline' },
+      { error: '更新场景大纲失败' },
       { status: 500 }
     );
   }
@@ -66,14 +66,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { movieId, outlineId } = await params;
     const outline = await getSceneOutline(outlineId);
     if (!outline || outline.movieId !== movieId) {
-      return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景大纲不存在' }, { status: 404 });
     }
     await deleteSceneOutline(outlineId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting outline:', error);
     return NextResponse.json(
-      { error: 'Failed to delete outline' },
+      { error: '删除场景大纲失败' },
       { status: 500 }
     );
   }

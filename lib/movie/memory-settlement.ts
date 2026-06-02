@@ -56,10 +56,7 @@ Extract plot addition and character state updates:`,
 
   const raw = await chatCompletion(messages, { temperature: 0.5, maxTokens: 1024 });
   const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
-  const parsed = JSON.parse(cleaned) as {
-    plotSummaryAddition?: string;
-    characterStates?: Record<string, { emotionalState?: string; physicalState?: string; knowledge?: string[] }>;
-  };
+  const parsed = parseSettlementJson(cleaned, sceneContext);
 
   const plotSummaryAddition = String(parsed.plotSummaryAddition ?? '').trim();
   const characterStateUpdates: Record<string, CharacterState> = {};
@@ -77,4 +74,50 @@ Extract plot addition and character state updates:`,
   }
 
   return { plotSummaryAddition, characterStateUpdates };
+}
+
+function parseSettlementJson(
+  value: string,
+  sceneContext: {
+    sceneHeading: string;
+    contentSummary: string;
+    emotionalGoal: string;
+  }
+): {
+  plotSummaryAddition?: string;
+  characterStates?: Record<string, { emotionalState?: string; physicalState?: string; knowledge?: string[] }>;
+} {
+  if (!value) {
+    return fallbackSettlement(sceneContext);
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    const objectMatch = value.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      try {
+        return JSON.parse(objectMatch[0]);
+      } catch {
+        // Fall through to a deterministic fallback so scene confirmation is not blocked.
+      }
+    }
+  }
+
+  return fallbackSettlement(sceneContext);
+}
+
+function fallbackSettlement(sceneContext: {
+  sceneHeading: string;
+  contentSummary: string;
+  emotionalGoal: string;
+}) {
+  return {
+    plotSummaryAddition: [
+      sceneContext.sceneHeading,
+      sceneContext.contentSummary,
+      sceneContext.emotionalGoal ? `情绪目标：${sceneContext.emotionalGoal}` : null,
+    ].filter(Boolean).join('。'),
+    characterStates: {},
+  };
 }

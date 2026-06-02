@@ -97,6 +97,7 @@ export async function completeSceneExecutionJob(
     review?: unknown;
     attempts?: number;
     repaired?: boolean;
+    bestEffort?: boolean;
   }
 ) {
   return prisma.sceneExecutionJob.update({

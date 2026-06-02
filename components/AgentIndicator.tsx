@@ -16,7 +16,7 @@ export default function AgentIndicator({ agentName, isThinking, isSearching }: A
         <div>
           <h4 className="font-semibold text-gray-900 dark:text-white">{agentName}</h4>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {isSearching ? 'Searching the web...' : 'Thinking...'}
+            {isSearching ? '正在搜索网页...' : '正在思考...'}
           </p>
         </div>
       </div>
@@ -32,7 +32,7 @@ export default function AgentIndicator({ agentName, isThinking, isSearching }: A
       {isSearching && (
         <div className="ml-10 mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
           <span className="animate-pulse">🔍</span>
-          <span>Gathering information...</span>
+          <span>正在收集信息...</span>
         </div>
       )}
     </div>

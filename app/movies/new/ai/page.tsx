@@ -23,17 +23,17 @@ export default function NewAIScreenplayPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: title.trim() || `AI Screenplay: ${theme.substring(0, 30)}`,
+          title: title.trim() || `AI 剧本：${theme.substring(0, 30)}`,
           theme: theme.trim(),
         }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to create');
+      if (!response.ok) throw new Error(data.error || '创建失败');
 
       router.push(`/movies/${data.movie.id}/workflow`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -43,22 +43,23 @@ export default function NewAIScreenplayPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
       <div className="max-w-xl mx-auto">
         <Link href="/movies" className="text-blue-500 hover:text-blue-600 text-sm font-medium mb-6 inline-block">
-          &larr; Back to Movies
+          &larr; 返回电影项目
         </Link>
 
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          AI 自动化剧本创作
+          系统自动创作
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          输入电影主题，AI 将生成故事提案、角色档案和场景大纲。
+          从一个主题开始，系统按流程生成故事提案、开发材料、角色、大纲、剧本、小说、图片和视频。
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="ai-theme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               电影主题 *
             </label>
             <input
+              id="ai-theme"
               type="text"
               value={theme}
               onChange={e => setTheme(e.target.value)}
@@ -69,10 +70,11 @@ export default function NewAIScreenplayPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="ai-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               项目标题（可选）
             </label>
             <input
+              id="ai-title"
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -92,7 +94,7 @@ export default function NewAIScreenplayPage() {
             disabled={isSubmitting}
             className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? '创建中...' : '开始创作'}
+            {isSubmitting ? '创建中...' : '进入系统自动创作'}
           </button>
         </form>
       </div>

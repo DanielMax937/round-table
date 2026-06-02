@@ -57,7 +57,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to finalize script');
+        throw new Error(errorData.error || '生成终稿剧本失败');
       }
 
       const data = await response.json();
@@ -65,7 +65,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
       if (data.error) setError(data.error);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : '未知错误');
     } finally {
       setIsGenerating(false);
       abortControllerRef.current = null;
@@ -98,12 +98,12 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h2 id="script-modal-title" className="text-2xl font-bold text-gray-900 dark:text-white">
-            Finalize Script
+            生成终稿剧本
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none"
-            aria-label="Close modal"
+            aria-label="关闭弹窗"
           >
             &times;
           </button>
@@ -113,7 +113,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
           {!isGenerating && !script && !error && (
             <div className="text-center py-12">
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Convert the improvised dialogue into proper screenplay format:
+                将即兴对话整理成标准剧本格式：
               </p>
               <p className="text-xl font-semibold text-gray-900 dark:text-white mb-8">
                 &ldquo;{sceneHeading}&rdquo;
@@ -122,7 +122,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
                 onClick={generateScript}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Finalize Script
+                生成终稿剧本
               </button>
             </div>
           )}
@@ -131,7 +131,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-                <span>Writing screenplay...</span>
+                <span>正在写成剧本...</span>
               </div>
               {script && (
                 <pre className="whitespace-pre-wrap font-mono text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
@@ -149,7 +149,7 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
 
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4 text-red-700 dark:text-red-300">
-              Error: {error}
+              错误：{error}
             </div>
           )}
         </div>
@@ -160,13 +160,13 @@ export function ScriptModal({ isOpen, onClose, movieId, sceneId, sceneHeading }:
               onClick={copyToClipboard}
               className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              Copy to Clipboard
+              复制到剪贴板
             </button>
             <button
               onClick={downloadScript}
               className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
             >
-              Download Script
+              下载剧本
             </button>
           </div>
         )}

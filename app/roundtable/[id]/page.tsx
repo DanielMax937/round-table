@@ -40,7 +40,7 @@ export default async function DiscussionPage({ params }: PageProps) {
             href="/discussions"
             className="text-blue-500 hover:text-blue-600 text-sm font-medium"
           >
-            ← Back to History
+            ← 返回历史
           </Link>
         </div>
 

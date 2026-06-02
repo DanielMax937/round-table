@@ -105,7 +105,7 @@ export default function DiscussionView({
         }
       }
     } catch (err) {
-      console.error('Failed to refresh data:', err);
+      console.error('刷新数据失败:', err);
     }
   };
 
@@ -126,14 +126,14 @@ export default function DiscussionView({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to start round');
+        throw new Error(data.error || '启动新轮次失败');
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       if (!reader) {
-        throw new Error('No response body');
+        throw new Error('响应内容为空');
       }
 
       let buffer = '';
@@ -167,7 +167,7 @@ export default function DiscussionView({
 
       await refreshData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setIsStreaming(false);
       setCurrentAgent(null);
@@ -222,7 +222,7 @@ export default function DiscussionView({
         break;
 
       case 'error':
-        setError(data.error || 'An error occurred');
+        setError(data.error || '发生错误');
         break;
     }
   };
@@ -242,7 +242,7 @@ export default function DiscussionView({
         router.refresh();
       }
     } catch (err) {
-      console.error('Failed to update status:', err);
+      console.error('更新状态失败:', err);
     }
   };
 
@@ -254,11 +254,11 @@ export default function DiscussionView({
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mb-6">
         <h1 className="text-2xl font-bold mb-2">{topic}</h1>
         <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-          <span>Round {currentRound} of {maxRounds}</span>
+          <span>第 {currentRound} / {maxRounds} 轮</span>
           <span>•</span>
-          <span>{agents.length} agents</span>
+          <span>{agents.length} 个智能体</span>
           <span>•</span>
-          <span className="capitalize">{status}</span>
+          <span>{status === 'active' ? '进行中' : status === 'paused' ? '已暂停' : status === 'archived' ? '已归档' : status}</span>
         </div>
       </div>
 
@@ -275,8 +275,8 @@ export default function DiscussionView({
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎉</span>
             <div>
-              <h3 className="font-semibold">Discussion Complete!</h3>
-              <p className="text-sm">All {currentRound} rounds finished. You can generate a blog post or review the discussion.</p>
+              <h3 className="font-semibold">讨论已完成</h3>
+              <p className="text-sm">已完成全部 {currentRound} 轮。你可以生成博客文章或回顾讨论内容。</p>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function DiscussionView({
         {rounds.map((round) => (
           <div key={round.id}>
             <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold">Round {round.roundNumber}</h3>
+              <h3 className="text-lg font-semibold">第 {round.roundNumber} 轮</h3>
             </div>
             {round.messages.map((message) => {
               // Parse citations from JSON string
@@ -348,7 +348,7 @@ export default function DiscussionView({
                 : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
                 }`}
             >
-              {isStreaming ? 'Discussion in progress...' : `Start Round ${currentRound + 1}`}
+              {isStreaming ? '讨论进行中...' : `开始第 ${currentRound + 1} 轮`}
             </button>
 
             {status === 'active' && (
@@ -357,7 +357,7 @@ export default function DiscussionView({
                 disabled={isStreaming}
                 className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
               >
-                Pause
+                暂停
               </button>
             )}
 
@@ -367,7 +367,7 @@ export default function DiscussionView({
                 disabled={isStreaming}
                 className="px-4 py-2 rounded-lg font-medium bg-green-500 text-white hover:bg-green-600 disabled:opacity-50"
               >
-                Resume
+                继续
               </button>
             )}
           </div>
@@ -377,9 +377,9 @@ export default function DiscussionView({
               onClick={() => setShowBlogModal(true)}
               disabled={isStreaming || rounds.length === 0}
               className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
-              title={rounds.length === 0 ? 'Complete at least one round to generate a blog post' : ''}
+              title={rounds.length === 0 ? '至少完成一轮后才能生成博客文章' : ''}
             >
-              Generate Blog Post
+              生成博客文章
             </button>
 
             <button
@@ -387,7 +387,7 @@ export default function DiscussionView({
               disabled={isStreaming}
               className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
             >
-              Archive
+              归档
             </button>
           </div>
         </div>

@@ -18,14 +18,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Check if round table exists
     const exists = await roundTableExists(id);
     if (!exists) {
-      return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
+      return NextResponse.json({ error: '圆桌讨论不存在' }, { status: 404 });
     }
 
     // Get round table with details
     const roundTable = await getRoundTableWithDetails(id);
 
     if (!roundTable) {
-      return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
+      return NextResponse.json({ error: '圆桌讨论不存在' }, { status: 404 });
     }
 
     // Parse tool calls in messages (toolCalls is stored as JSON string in DB)
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching round table:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch round table', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '获取圆桌讨论失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Validate status
     if (!status || !['active', 'paused', 'archived'].includes(status)) {
       return NextResponse.json(
-        { error: 'Status must be one of: active, paused, archived' },
+        { error: '状态必须是 active、paused 或 archived 之一' },
         { status: 400 }
       );
     }
@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check if round table exists
     const exists = await roundTableExists(id);
     if (!exists) {
-      return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
+      return NextResponse.json({ error: '圆桌讨论不存在' }, { status: 404 });
     }
 
     // Update status
@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error updating round table:', error);
     return NextResponse.json(
-      { error: 'Failed to update round table', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '更新圆桌讨论失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -127,7 +127,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check if round table exists
     const exists = await roundTableExists(id);
     if (!exists) {
-      return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
+      return NextResponse.json({ error: '圆桌讨论不存在' }, { status: 404 });
     }
 
     // Delete round table (cascade delete handles agents, rounds, messages)
@@ -137,7 +137,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error deleting round table:', error);
     return NextResponse.json(
-      { error: 'Failed to delete round table', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '删除圆桌讨论失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

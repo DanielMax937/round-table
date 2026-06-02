@@ -3,8 +3,8 @@ import "./globals.css";
 import Navigation from "@/components/Navigation";
 
 export const metadata: Metadata = {
-  title: "Round Table - AI Discussion Platform",
-  description: "Multi-agent AI discussions on any topic",
+  title: "圆桌 AI - 多智能体讨论平台",
+  description: "让多个 AI 智能体围绕任意主题展开讨论",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <body>
         <Navigation />
         {children}

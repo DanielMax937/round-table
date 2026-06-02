@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     const { title, description, theme } = await request.json();
 
     if (!title || typeof title !== 'string' || !title.trim()) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+      return NextResponse.json({ error: '标题为必填项' }, { status: 400 });
     }
 
     const movie = await createMovie({ title, description, theme });
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating movie:', error);
     return NextResponse.json(
-      { error: 'Failed to create movie', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '创建电影项目失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -31,7 +31,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching movies:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch movies' },
+      { error: '获取电影项目列表失败' },
       { status: 500 }
     );
   }

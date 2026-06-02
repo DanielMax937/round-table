@@ -22,15 +22,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const jobId = searchParams.get('jobId');
 
     if (!jobId) {
-      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      return NextResponse.json({ error: '任务 ID 为必填项' }, { status: 400 });
     }
 
     const job = await getSceneExecutionJob(jobId);
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
     if (job.movieId !== movieId) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching scene execution job:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch job', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '获取任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const outlines = await getSceneOutlinesByMovie(movieId);
     const outline = outlines[index];
     if (!outline) {
-      return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景大纲不存在' }, { status: 404 });
     }
 
     const existingScene = await prisma.scene.findFirst({
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
     if (existingScene) {
       return NextResponse.json(
-        { error: 'Scene already created for this outline', sceneId: existingScene.id },
+        { error: '该大纲已创建场景', sceneId: existingScene.id },
         { status: 400 }
       );
     }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error executing scene:', error);
     return NextResponse.json(
-      { error: 'Failed to execute scene', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '执行场景生成失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

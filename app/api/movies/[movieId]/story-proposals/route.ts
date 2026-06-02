@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
     const proposals = movie.storyProposalsJson
       ? (JSON.parse(movie.storyProposalsJson) as any[])
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching story proposals:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch proposals' },
+      { error: '获取故事提案失败' },
       { status: 500 }
     );
   }
@@ -33,13 +33,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const theme = movie.theme || (await request.json()).theme;
     if (!theme?.trim()) {
       return NextResponse.json(
-        { error: 'Theme is required. Set movie.theme or pass { theme } in body.' },
+        { error: '主题为必填项。请设置 movie.theme，或在请求体中传入 { theme }。' },
         { status: 400 }
       );
     }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error generating story proposals:', error);
     return NextResponse.json(
-      { error: 'Failed to generate proposals', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '生成故事提案失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

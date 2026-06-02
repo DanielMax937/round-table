@@ -12,11 +12,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const scene = await getSceneWithDialogue(sceneId);
     if (!scene) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
 
     if (!scene.roundTable.rounds.length) {
-      return NextResponse.json({ error: 'No dialogue rounds to finalize' }, { status: 400 });
+      return NextResponse.json({ error: '没有可定稿的对话轮次' }, { status: 400 });
     }
 
     const input: ScriptSynthesisInput = {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error finalizing scene:', error);
     return NextResponse.json(
-      { error: 'Failed to finalize', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '定稿失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

@@ -1,5 +1,7 @@
 import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
+import type { DevelopmentReport, StoryBible } from './types';
+import { formatDevelopmentContext, parseDevelopmentReport, parseStoryBible } from './development';
 
 export interface NovelChapterInput {
   movieTitle: string;
@@ -17,6 +19,15 @@ export interface NovelChapterInput {
     signatureLanguageStyle?: string;
   }>;
   screenplay: string;
+  developmentReport?: DevelopmentReport | null;
+  storyBible?: StoryBible | null;
+  scenePlanning?: {
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  } | null;
   previousChapters?: Array<{
     chapterNumber: number;
     title: string;
@@ -90,6 +101,8 @@ ${input.movieTitle}
 描述：${input.sceneDescription}
 ${input.contentSummary ? `内容摘要：${input.contentSummary}` : ''}
 ${input.emotionalGoal ? `情感目标：${input.emotionalGoal}` : ''}
+
+${buildNovelDevelopmentContext(input)}
 
 # 角色
 `;
@@ -188,6 +201,7 @@ export async function convertMovieToNovel(
           },
           orderBy: { sceneNumber: 'asc' },
           include: {
+            sceneOutline: true,
             sceneCharacters: {
               include: { character: true },
               orderBy: { order: 'asc' },
@@ -202,6 +216,8 @@ export async function convertMovieToNovel(
 
     const chapters: NovelChapterResult[] = [];
     const totalScenes = movie.scenes.length;
+    const developmentReport = parseDevelopmentReport(movie.developmentReportJson);
+    const storyBible = parseStoryBible(movie.storyBibleJson);
 
     for (let i = 0; i < totalScenes; i++) {
       const scene = movie.scenes[i];
@@ -233,6 +249,15 @@ export async function convertMovieToNovel(
         emotionalGoal: scene.emotionalGoal || undefined,
         characters: sceneCharacters,
         screenplay: scene.finalizedScript || '',
+        developmentReport,
+        storyBible,
+        scenePlanning: scene.sceneOutline ? {
+          act: scene.sceneOutline.act,
+          arcName: scene.sceneOutline.arcName,
+          arcGoal: scene.sceneOutline.arcGoal,
+          setupPayoff: scene.sceneOutline.setupPayoff,
+          requiredMotif: scene.sceneOutline.requiredMotif,
+        } : null,
         previousChapters,
         chapterNumber,
       };
@@ -257,6 +282,28 @@ export async function convertMovieToNovel(
     console.error('[Novel Converter] Error:', error);
     throw error;
   }
+}
+
+function buildNovelDevelopmentContext(input: NovelChapterInput): string {
+  const scenePlanning = [
+    input.scenePlanning?.act ? `幕/阶段：${input.scenePlanning.act}` : null,
+    input.scenePlanning?.arcName ? `叙事弧线：${input.scenePlanning.arcName}` : null,
+    input.scenePlanning?.arcGoal ? `弧线目标：${input.scenePlanning.arcGoal}` : null,
+    input.scenePlanning?.setupPayoff ? `本章埋设/回收：${input.scenePlanning.setupPayoff}` : null,
+    input.scenePlanning?.requiredMotif ? `本章必须出现的物件/空间/动作：${input.scenePlanning.requiredMotif}` : null,
+  ].filter(Boolean).join('\n');
+  const developmentContext = formatDevelopmentContext({
+    report: input.developmentReport,
+    bible: input.storyBible,
+    maxChars: 5000,
+  });
+  if (!scenePlanning && !developmentContext) return '';
+  return [
+    '# 开发约束 / 故事圣经',
+    scenePlanning,
+    developmentContext,
+    '要求：小说化时必须保留不可改事实、角色行为规则、物件/空间母题和本章埋设/回收；但不要在正文中解释这些设计。',
+  ].filter(Boolean).join('\n\n');
 }
 
 function assembleNovel(title: string, chapters: NovelChapterResult[]): string {

@@ -3,33 +3,33 @@ import { NextResponse } from 'next/server';
 const openApiSpec = {
   openapi: '3.0.3',
   info: {
-    title: 'Round Table API',
-    description: 'Multi-agent AI discussion platform. Agents debate topics using distinct personas with real-time streaming and web search.',
+    title: '圆桌 API',
+    description: '多智能体 AI 讨论平台。智能体基于不同人格实时讨论主题，并可使用网页搜索。',
     version: '0.1.0',
   },
-  servers: [{ url: '/', description: 'Current server' }],
+  servers: [{ url: '/', description: '当前服务器' }],
   paths: {
     '/api/health': {
       get: {
-        summary: 'Health check',
-        tags: ['System'],
-        responses: { 200: { description: 'Service healthy', content: { 'application/json': { schema: { $ref: '#/components/schemas/Health' } } } } },
+        summary: '健康检查',
+        tags: ['系统'],
+        responses: { 200: { description: '服务正常', content: { 'application/json': { schema: { $ref: '#/components/schemas/Health' } } } } },
       },
     },
     '/api/roundtable': {
       get: {
-        summary: 'List all round tables',
-        tags: ['Round Table'],
+        summary: '列出所有圆桌讨论',
+        tags: ['圆桌讨论'],
         parameters: [
           { name: 'status', in: 'query', schema: { type: 'string', enum: ['active', 'paused', 'archived'] } },
           { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
           { name: 'pageSize', in: 'query', schema: { type: 'integer', default: 10 } },
         ],
-        responses: { 200: { description: 'List of round tables' } },
+        responses: { 200: { description: '圆桌讨论列表' } },
       },
       post: {
-        summary: 'Create round table',
-        tags: ['Round Table'],
+        summary: '创建圆桌讨论',
+        tags: ['圆桌讨论'],
         requestBody: {
           required: true,
           content: {
@@ -38,7 +38,7 @@ const openApiSpec = {
                 type: 'object',
                 required: ['topic', 'agentCount'],
                 properties: {
-                  topic: { type: 'string', description: 'Discussion topic' },
+                  topic: { type: 'string', description: '讨论主题' },
                   agentCount: { type: 'integer', minimum: 2, maximum: 6 },
                   maxRounds: { type: 'integer', minimum: 1, maximum: 50, default: 5 },
                   customPersonas: { type: 'array', items: { type: 'string' } },
@@ -49,19 +49,19 @@ const openApiSpec = {
             },
           },
         },
-        responses: { 201: { description: 'Round table created' }, 400: { description: 'Validation error' } },
+        responses: { 201: { description: '圆桌讨论已创建' }, 400: { description: '参数校验错误' } },
       },
     },
     '/api/roundtable/{id}': {
       get: {
-        summary: 'Get round table',
-        tags: ['Round Table'],
+        summary: '获取圆桌讨论',
+        tags: ['圆桌讨论'],
         parameters: [{ name: 'id', in: 'path', required: true }],
-        responses: { 200: { description: 'Round table details' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '圆桌讨论详情' }, 404: { description: '不存在' } },
       },
       patch: {
-        summary: 'Update round table status',
-        tags: ['Round Table'],
+        summary: '更新圆桌讨论状态',
+        tags: ['圆桌讨论'],
         parameters: [{ name: 'id', in: 'path', required: true }],
         requestBody: {
           content: {
@@ -74,44 +74,44 @@ const openApiSpec = {
             },
           },
         },
-        responses: { 200: { description: 'Updated' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '已更新' }, 404: { description: '不存在' } },
       },
       delete: {
-        summary: 'Delete round table',
-        tags: ['Round Table'],
+        summary: '删除圆桌讨论',
+        tags: ['圆桌讨论'],
         parameters: [{ name: 'id', in: 'path', required: true }],
-        responses: { 200: { description: 'Deleted' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '已删除' }, 404: { description: '不存在' } },
       },
     },
     '/api/roundtable/{id}/round': {
       post: {
-        summary: 'Start new round (SSE)',
-        description: 'Returns Server-Sent Events stream. Events: round-start, agent-start, chunk, tool-call, agent-complete, round-complete, done',
-        tags: ['Round Table'],
+        summary: '启动新轮次（SSE）',
+        description: '返回 Server-Sent Events 流。事件包括 round-start、agent-start、chunk、tool-call、agent-complete、round-complete、done。',
+        tags: ['圆桌讨论'],
         parameters: [{ name: 'id', in: 'path', required: true }],
         responses: {
-          200: { description: 'SSE stream (Content-Type: text/event-stream)' },
-          404: { description: 'Round table not found' },
+          200: { description: 'SSE 流（Content-Type: text/event-stream）' },
+          404: { description: '圆桌讨论不存在' },
         },
       },
     },
     '/api/roundtable/{id}/blog-post': {
       post: {
-        summary: 'Generate blog post (SSE)',
-        description: 'Synthesizes discussion into markdown blog post. Returns SSE stream.',
-        tags: ['Round Table'],
+        summary: '生成博客文章（SSE）',
+        description: '将讨论整理为 Markdown 博客文章，并返回 SSE 流。',
+        tags: ['圆桌讨论'],
         parameters: [{ name: 'id', in: 'path', required: true }],
         responses: {
-          200: { description: 'SSE stream' },
-          404: { description: 'Round table not found' },
+          200: { description: 'SSE 流' },
+          404: { description: '圆桌讨论不存在' },
         },
       },
     },
     '/api/personas': {
-      get: { summary: 'List personas', tags: ['Personas'], responses: { 200: { description: 'All personas' } } },
+      get: { summary: '列出智能体人格', tags: ['智能体人格'], responses: { 200: { description: '全部智能体人格' } } },
       post: {
-        summary: 'Create persona',
-        tags: ['Personas'],
+        summary: '创建智能体人格',
+        tags: ['智能体人格'],
         requestBody: {
           required: true,
           content: {
@@ -130,18 +130,18 @@ const openApiSpec = {
             },
           },
         },
-        responses: { 201: { description: 'Persona created' } },
+        responses: { 201: { description: '智能体人格已创建' } },
       },
     },
     '/api/personas/{id}': {
-      get: { summary: 'Get persona', tags: ['Personas'], parameters: [{ name: 'id', in: 'path', required: true }], responses: { 200: {} } },
+      get: { summary: '获取智能体人格', tags: ['智能体人格'], parameters: [{ name: 'id', in: 'path', required: true }], responses: { 200: {} } },
     },
     '/api/moe-vote': {
-      get: { summary: 'List MoE vote jobs', tags: ['MoE Vote'], responses: { 200: { description: 'All jobs' } } },
+      get: { summary: '列出混合专家投票任务', tags: ['混合专家投票'], responses: { 200: { description: '全部任务' } } },
       post: {
-        summary: 'Create MoE vote job',
-        description: 'Async job: multi-agent discussion + voting. Poll /api/moe-vote/{jobId} for status.',
-        tags: ['MoE Vote'],
+        summary: '创建混合专家投票任务',
+        description: '异步任务：多智能体讨论 + 投票。通过 /api/moe-vote/{jobId} 轮询状态。',
+        tags: ['混合专家投票'],
         requestBody: {
           required: true,
           content: {
@@ -160,28 +160,28 @@ const openApiSpec = {
             },
           },
         },
-        responses: { 201: { description: 'jobId, estimatedCompletionTime' } },
+        responses: { 201: { description: '任务 ID 和预计完成时间' } },
       },
     },
     '/api/moe-vote/{jobId}': {
       get: {
-        summary: 'Get MoE vote job status',
-        tags: ['MoE Vote'],
+        summary: '获取混合专家投票任务状态',
+        tags: ['混合专家投票'],
         parameters: [{ name: 'jobId', in: 'path', required: true }],
-        responses: { 200: { description: 'status, progress, result (when completed)' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '状态、进度、结果（完成后）' }, 404: { description: '不存在' } },
       },
       delete: {
-        summary: 'Delete MoE vote job',
-        tags: ['MoE Vote'],
+        summary: '删除混合专家投票任务',
+        tags: ['混合专家投票'],
         parameters: [{ name: 'jobId', in: 'path', required: true }],
-        responses: { 200: { description: 'Deleted' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '已删除' }, 404: { description: '不存在' } },
       },
     },
     '/api/discussion': {
       post: {
-        summary: 'Create discussion job',
-        description: 'Async multi-round discussion. Poll /api/discussion/{jobId} for status.',
-        tags: ['Discussion'],
+        summary: '创建讨论任务',
+        description: '异步多轮讨论。通过 /api/discussion/{jobId} 轮询状态。',
+        tags: ['讨论'],
         requestBody: {
           required: true,
           content: {
@@ -200,15 +200,15 @@ const openApiSpec = {
             },
           },
         },
-        responses: { 201: { description: 'jobId, roundTableId, status' } },
+        responses: { 201: { description: '任务 ID、圆桌讨论 ID 和状态' } },
       },
     },
     '/api/discussion/{jobId}': {
       get: {
-        summary: 'Get discussion job status',
-        tags: ['Discussion'],
+        summary: '获取讨论任务状态',
+        tags: ['讨论'],
         parameters: [{ name: 'jobId', in: 'path', required: true }],
-        responses: { 200: { description: 'status, progress, roundTable' }, 404: { description: 'Not found' } },
+        responses: { 200: { description: '状态、进度和圆桌讨论' }, 404: { description: '不存在' } },
       },
     },
   },

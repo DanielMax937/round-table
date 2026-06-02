@@ -13,28 +13,28 @@ export async function POST(request: NextRequest) {
         // Validation
         if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
             return NextResponse.json(
-                { error: 'Topic is required and must be a non-empty string' },
+                { error: '主题为必填项，且必须是非空字符串' },
                 { status: 400 }
             );
         }
 
         if (!agentCount || typeof agentCount !== 'number' || agentCount < 1) {
             return NextResponse.json(
-                { error: 'Agent count must be a positive number' },
+                { error: '智能体数量必须是正数' },
                 { status: 400 }
             );
         }
 
         if (!maxRounds || typeof maxRounds !== 'number' || maxRounds < 1) {
             return NextResponse.json(
-                { error: 'Max rounds must be a positive number' },
+                { error: '最大轮数必须是正数' },
                 { status: 400 }
             );
         }
 
         if (!Array.isArray(selectedPersonaIds) || selectedPersonaIds.length === 0) {
             return NextResponse.json(
-                { error: 'Selected persona IDs must be a non-empty array' },
+                { error: '已选人格 ID 必须是非空数组' },
                 { status: 400 }
             );
         }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         executeDiscussionJob(job.id).catch((error) => {
             console.error(`Background job ${job.id} failed:`, error);
             // Update job status to failed
-            failDiscussionJob(job.id, error instanceof Error ? error.message : 'Unknown error').catch(console.error);
+            failDiscussionJob(job.id, error instanceof Error ? error.message : '未知错误').catch(console.error);
         });
 
         return NextResponse.json({
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
         console.error('Error creating discussion job:', error);
         return NextResponse.json(
             {
-                error: 'Failed to create discussion job',
-                details: error instanceof Error ? error.message : 'Unknown error'
+                error: '创建讨论任务失败',
+                details: error instanceof Error ? error.message : '未知错误'
             },
             { status: 500 }
         );

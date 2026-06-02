@@ -1,6 +1,8 @@
 import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
 import type { CharacterState } from './types';
+import type { DevelopmentReport, StoryBible } from './types';
+import { formatDevelopmentContext } from './development';
 
 interface CharacterForScene {
   id: string;
@@ -20,6 +22,15 @@ export interface DirectorActorInput {
   contentSummary: string;
   emotionalGoal: string;
   plotSummary: string;
+  developmentReport?: DevelopmentReport | null;
+  storyBible?: StoryBible | null;
+  scenePlanning?: {
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  } | null;
   characters: CharacterForScene[];
 }
 
@@ -53,6 +64,8 @@ ${input.emotionalGoal}
 
 # 剧情背景
 ${input.plotSummary || '（故事开端）'}
+
+${formatPlanningContext(input)}
 
 # 本场角色
 `;
@@ -126,6 +139,8 @@ ${input.emotionalGoal}
 # 剧情背景
 ${input.plotSummary || '（故事开端）'}
 
+${formatPlanningContext(input)}
+
 # 本场角色
 `;
   for (const c of input.characters) {
@@ -146,4 +161,28 @@ ${input.plotSummary || '（故事开端）'}
 
 直接输出概要文本，不要用 markdown 标题，不要写「场景概要：」等前缀。`;
   return p;
+}
+
+function formatPlanningContext(input: DirectorActorInput): string {
+  const planningParts = [
+    input.scenePlanning?.act ? `幕/阶段：${input.scenePlanning.act}` : null,
+    input.scenePlanning?.arcName ? `叙事弧线：${input.scenePlanning.arcName}` : null,
+    input.scenePlanning?.arcGoal ? `弧线目标：${input.scenePlanning.arcGoal}` : null,
+    input.scenePlanning?.setupPayoff ? `本场埋设/回收：${input.scenePlanning.setupPayoff}` : null,
+    input.scenePlanning?.requiredMotif ? `本场必须出现的物件/空间/动作：${input.scenePlanning.requiredMotif}` : null,
+  ].filter(Boolean);
+  const devContext = formatDevelopmentContext({
+    report: input.developmentReport,
+    bible: input.storyBible,
+    maxChars: 5000,
+  });
+
+  if (!planningParts.length && !devContext) return '';
+
+  return [
+    '# 开发约束',
+    planningParts.join('\n'),
+    devContext,
+    '以上内容是导演约束：必须落实不可改事实、角色行为规则、物件/空间母题和本场埋设/回收，不要让角色直接讲主题。',
+  ].filter(Boolean).join('\n\n');
 }

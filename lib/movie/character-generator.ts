@@ -1,6 +1,7 @@
 import { chatCompletion } from '@/lib/llm/client';
 import type { LLMMessage } from '@/lib/llm/types';
-import type { StoryProposal, CharacterProfile } from './types';
+import type { StoryBible, DevelopmentReport, StoryProposal, CharacterProfile } from './types';
+import { formatDevelopmentContext } from './development';
 
 const PROMPT = `你是一位专业的编剧。根据已确认的故事提案，生成3-6个核心角色档案。
 
@@ -23,12 +24,22 @@ const PROMPT = `你是一位专业的编剧。根据已确认的故事提案，�
 格式: [{"name":"...","surfaceGoal":"...","deepMotivation":"...","fatalFlaw":"...","signatureLanguageStyle":"...","backstory":"...","personalityTraits":"..."}, ...]`;
 
 export async function generateCharactersFromStory(
-  proposal: StoryProposal
+  proposal: StoryProposal,
+  development?: {
+    report?: DevelopmentReport | null;
+    bible?: StoryBible | null;
+  }
 ): Promise<CharacterProfile[]> {
   const context = `Story: ${proposal.oneLiner}
 Conflict: ${proposal.coreConflict}
 Style: ${proposal.styleReference}
-Synopsis: ${proposal.synopsis}`;
+Synopsis: ${proposal.synopsis}
+
+${formatDevelopmentContext({
+  report: development?.report,
+  bible: development?.bible,
+  maxChars: 5000,
+})}`;
 
   const messages: LLMMessage[] = [
     { role: 'system', content: PROMPT },

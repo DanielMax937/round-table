@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const outlines = await getSceneOutlinesByMovie(movieId);
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching workflow:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch workflow status' },
+      { error: '获取工作流状态失败' },
       { status: 500 }
     );
   }

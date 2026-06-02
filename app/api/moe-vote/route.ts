@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const validation = validateMoeVoteRequest(body);
     if (!validation.valid) {
       return NextResponse.json(
-        { error: 'Validation failed', details: validation.errors },
+        { error: '参数校验失败', details: validation.errors },
         { status: 400 }
       );
     }
@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
     console.error('Error creating MoE vote job:', error);
     return NextResponse.json(
       {
-        error: 'Failed to create job',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: '创建投票任务失败',
+        details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
     );
@@ -117,8 +117,8 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching vote jobs:', error);
     return NextResponse.json(
       {
-        error: 'Failed to fetch vote jobs',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: '获取投票任务失败',
+        details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
     );

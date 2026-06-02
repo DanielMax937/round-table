@@ -29,7 +29,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const job = await getMoeVoteJob(jobId);
 
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
 
     // Build response
@@ -57,7 +57,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       } catch (parseError) {
         console.error('Failed to parse job result JSON:', parseError);
         return NextResponse.json(
-          { error: 'Failed to parse job result', details: 'Stored result is malformed' },
+          { error: '解析任务结果失败', details: '已保存的结果格式异常' },
           { status: 500 }
         );
       }
@@ -79,8 +79,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     console.error('Error fetching job:', error);
     return NextResponse.json(
       {
-        error: 'Failed to fetch job',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: '获取任务失败',
+        details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
     );
@@ -94,7 +94,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     // Check if job exists before deleting
     const job = await getMoeVoteJob(jobId);
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
 
     await deleteMoeVoteJob(jobId);
@@ -104,8 +104,8 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     console.error('Error deleting job:', error);
     return NextResponse.json(
       {
-        error: 'Failed to delete job',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: '删除任务失败',
+        details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
     );

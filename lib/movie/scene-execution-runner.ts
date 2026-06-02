@@ -58,6 +58,11 @@ export async function executeSceneJobInBackground(jobId: string): Promise<void> 
       title: outline.title,
       contentSummary: outline.contentSummary,
       emotionalGoal: outline.emotionalGoal,
+      act: outline.act,
+      arcName: outline.arcName,
+      arcGoal: outline.arcGoal,
+      setupPayoff: outline.setupPayoff,
+      requiredMotif: outline.requiredMotif,
       characterIds: characterIds.filter((id) => validCharacterIds.has(id)),
     });
 
@@ -67,7 +72,7 @@ export async function executeSceneJobInBackground(jobId: string): Promise<void> 
     });
 
     const result = await executeSceneWithAgents(scene.id, {
-      header: `🎬 场景 ${job.outlineIndex + 1} 已通过 LLM 编剧评审: ${outline.title}\n\n请审阅。可反馈重写或确认进入下一场。`,
+      header: `🎬 场景 ${job.outlineIndex + 1} 已生成: ${outline.title}\n\n请审阅。可反馈重写或确认进入下一场。`,
       onProgress: async (progress) => {
         await updateSceneExecutionJobProgress(jobId, {
           currentPhase: progress.phase,
@@ -75,6 +80,16 @@ export async function executeSceneJobInBackground(jobId: string): Promise<void> 
           currentAgentName: progress.agentName ?? null,
         });
       },
+    });
+
+    await recordAutomaticScriptQualityReview({
+      movieId: job.movieId,
+      sceneId: scene.id,
+      sceneNumber: scene.sceneNumber,
+      heading: scene.heading,
+      result,
+    }).catch((reviewError) => {
+      console.error(`Failed to persist automatic script review for scene ${scene.id}:`, reviewError);
     });
 
     await completeSceneExecutionJob(jobId, result);
@@ -87,4 +102,53 @@ export async function executeSceneJobInBackground(jobId: string): Promise<void> 
       console.error(`Failed to persist scene job failure ${jobId}:`, failError);
     });
   }
+}
+
+async function recordAutomaticScriptQualityReview(input: {
+  movieId: string;
+  sceneId: string;
+  sceneNumber: number;
+  heading: string;
+  result: Awaited<ReturnType<typeof executeSceneWithAgents>>;
+}) {
+  const review = input.result.review;
+  if (!review) return;
+
+  const issues = input.result.bestEffort
+    ? [...review.issues, '自动质检 3 轮后仍未完全通过，已保存当前 best effort 版本。']
+    : review.issues;
+
+  await prisma.qualityReviewJob.create({
+    data: {
+      movieId: input.movieId,
+      targetType: 'script',
+      targetId: input.sceneId,
+      sceneId: input.sceneId,
+      title: `自动剧本质检：场景 ${input.sceneNumber} ${input.heading}`,
+      status: 'completed',
+      passed: review.passed && !input.result.bestEffort,
+      score: review.score,
+      aiFeel: review.aiFeel,
+      industryLevel: industryLevelFromScriptReview(review.score, review.passed && !input.result.bestEffort),
+      summary: input.result.bestEffort ? `Best effort：${review.summary}` : review.summary,
+      issuesJson: JSON.stringify(issues),
+      repairInstructions: review.rewriteInstructions,
+      resultJson: JSON.stringify({
+        source: 'scene_generation_auto_review',
+        bestEffort: Boolean(input.result.bestEffort),
+        attempts: input.result.attempts,
+        repaired: Boolean(input.result.repaired),
+        review,
+      }),
+      startedAt: new Date(),
+      completedAt: new Date(),
+    },
+  });
+}
+
+function industryLevelFromScriptReview(score: number, passed: boolean): string {
+  if (passed && score >= 9) return 'strong_professional';
+  if (passed && score >= 8) return 'ordinary_professional';
+  if (score >= 5) return 'rough_internal';
+  return 'not_usable';
 }

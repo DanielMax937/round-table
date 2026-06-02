@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (!name?.trim() || !backstory?.trim() || !personalityTraits?.trim()) {
       return NextResponse.json(
-        { error: 'Name, backstory, and personalityTraits are all required' },
+        { error: '姓名、背景故事和性格特征均为必填项' },
         { status: 400 }
       );
     }
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ character }, { status: 201 });
   } catch (error) {
     console.error('Error creating character:', error);
-    return NextResponse.json({ error: 'Failed to create character' }, { status: 500 });
+    return NextResponse.json({ error: '创建角色失败' }, { status: 500 });
   }
 }
 
@@ -41,6 +41,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ characters });
   } catch (error) {
     console.error('Error fetching characters:', error);
-    return NextResponse.json({ error: 'Failed to fetch characters' }, { status: 500 });
+    return NextResponse.json({ error: '获取角色失败' }, { status: 500 });
   }
 }

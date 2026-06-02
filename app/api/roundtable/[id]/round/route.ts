@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: '未配置 OpenAI API 密钥' },
         { status: 500 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Get round table with details
     const roundTable = await getRoundTableWithDetails(id);
     if (!roundTable) {
-      return NextResponse.json({ error: 'Round table not found' }, { status: 404 });
+      return NextResponse.json({ error: '圆桌讨论不存在' }, { status: 404 });
     }
 
     // Check if round table is active
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Get agents
     const agents = await getAgentsByRoundTable(id);
     if (agents.length === 0) {
-      return NextResponse.json({ error: 'No agents found for this round table' }, { status: 400 });
+      return NextResponse.json({ error: '该圆桌讨论没有可用智能体' }, { status: 400 });
     }
 
     // Validate round execution
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                       .catch((error) => {
                         console.error('Error completing round:', error);
                         sendEvent('error', {
-                          error: 'Failed to complete round',
+                          error: '完成轮次失败',
                           details: error.message,
                         });
                       });
@@ -236,8 +236,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         } catch (error) {
           console.error('Error executing round:', error);
           sendEvent('error', {
-            error: 'Round execution failed',
-            details: error instanceof Error ? error.message : 'Unknown error',
+            error: '轮次执行失败',
+            details: error instanceof Error ? error.message : '未知错误',
           });
           safeClose();
         }
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error in round API:', error);
     return NextResponse.json(
-      { error: 'Failed to start round', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '启动轮次失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

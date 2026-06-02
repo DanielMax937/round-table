@@ -1,4 +1,6 @@
 import { prisma } from '../prisma';
+import { getVisualAssetImageUrls } from '@/lib/movie/asset-files';
+import { markFailedVisualAssetJobsWithImagesCompleted } from '@/lib/movie/visual-assets';
 
 export interface CreateMovieData {
   title: string;
@@ -22,7 +24,8 @@ export async function getMovie(id: string) {
 }
 
 export async function getMovieWithDetails(id: string) {
-  return prisma.movie.findUnique({
+  await markFailedVisualAssetJobsWithImagesCompleted(id);
+  const movie = await prisma.movie.findUnique({
     where: { id },
     include: {
       characters: { orderBy: { createdAt: 'asc' } },
@@ -72,12 +75,25 @@ export async function getMovieWithDetails(id: string) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       },
+      novelConversionJobs: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
     },
   });
+  if (!movie) return null;
+  return {
+    ...movie,
+    visualAssetJobs: movie.visualAssetJobs.map((job) => ({
+      ...job,
+      imageUrls: getVisualAssetImageUrls(id, job),
+    })),
+  };
 }
 
 export async function getAllMovies() {
   return prisma.movie.findMany({
+    where: { status: 'active' },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { characters: true, scenes: true } },
@@ -94,6 +110,8 @@ export async function updateMovie(
     theme?: string;
     storyProposalJson?: string;
     storyProposalsJson?: string;
+    developmentReportJson?: string | null;
+    storyBibleJson?: string | null;
     plotSummary?: string;
     workflowPhase?: string;
   }
@@ -107,6 +125,8 @@ export async function updateMovie(
       ...(data.theme !== undefined && { theme: data.theme?.trim() || null }),
       ...(data.storyProposalJson !== undefined && { storyProposalJson: data.storyProposalJson }),
       ...(data.storyProposalsJson !== undefined && { storyProposalsJson: data.storyProposalsJson }),
+      ...(data.developmentReportJson !== undefined && { developmentReportJson: data.developmentReportJson }),
+      ...(data.storyBibleJson !== undefined && { storyBibleJson: data.storyBibleJson }),
       ...(data.plotSummary !== undefined && { plotSummary: data.plotSummary }),
       ...(data.workflowPhase != null && { workflowPhase: data.workflowPhase }),
     },
@@ -114,20 +134,8 @@ export async function updateMovie(
 }
 
 export async function deleteMovie(id: string) {
-  const scenes = await prisma.scene.findMany({
-    where: { movieId: id },
-    select: { id: true, roundTableId: true },
-  });
-
-  // Use interactive transaction for proper ordering:
-  // 1. Delete scenes (removes FK to RoundTable)
-  // 2. Delete orphaned RoundTables (cascades Agents, Rounds, Messages)
-  // 3. Delete movie (cascades Characters)
-  await prisma.$transaction(async (tx) => {
-    await tx.scene.deleteMany({ where: { movieId: id } });
-    for (const s of scenes) {
-      await tx.roundTable.delete({ where: { id: s.roundTableId } });
-    }
-    await tx.movie.delete({ where: { id } });
+  return prisma.movie.update({
+    where: { id },
+    data: { status: 'archived' },
   });
 }

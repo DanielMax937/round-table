@@ -11,7 +11,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
+    }
+    if (!movie.developmentReportJson && !movie.storyBibleJson) {
+      return NextResponse.json(
+        { error: '请先生成开发读本 / 故事圣经，再确认大纲。' },
+        { status: 400 }
+      );
     }
 
     await updateMovie(movieId, { workflowPhase: 'scene_execution' });
@@ -25,7 +31,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error confirming outline:', error);
     return NextResponse.json(
-      { error: 'Failed to confirm outline' },
+      { error: '确认场景大纲失败' },
       { status: 500 }
     );
   }

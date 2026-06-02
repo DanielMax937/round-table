@@ -101,6 +101,7 @@ export async function getSceneWithDialogue(id: string) {
         orderBy: { order: 'asc' },
         include: { character: true },
       },
+      sceneOutline: true,
       roundTable: {
         include: {
           agents: { orderBy: { order: 'asc' } },
@@ -172,7 +173,17 @@ function getDefaultSceneMaxRounds(characterCount: number): number {
 export async function createSceneFromOutline(
   movieId: string,
   sceneOutlineId: string,
-  outline: { title: string; contentSummary: string; emotionalGoal: string; characterIds: string[] }
+  outline: {
+    title: string;
+    contentSummary: string;
+    emotionalGoal: string;
+    characterIds: string[];
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  }
 ) {
   const sceneNumber = await getNextSceneNumber(movieId);
 
@@ -190,7 +201,14 @@ export async function createSceneFromOutline(
     }));
 
     const maxRounds = getDefaultSceneMaxRounds(agentsData.length);
-    const topic = `[Scene ${sceneNumber}] ${outline.title}\n\n${outline.contentSummary}\n\n情感目标: ${outline.emotionalGoal}\n\n请以角色身份表演这场戏，根据对话自然推进。每一轮都必须增加新的行动、信息、阻碍或关系变化；达到情感目标后收束，不要围绕同一观点循环。`;
+    const arcContext = [
+      outline.act ? `幕/阶段: ${outline.act}` : null,
+      outline.arcName ? `叙事弧线: ${outline.arcName}` : null,
+      outline.arcGoal ? `弧线目标: ${outline.arcGoal}` : null,
+      outline.setupPayoff ? `本场埋设/回收: ${outline.setupPayoff}` : null,
+      outline.requiredMotif ? `必须出现的物件/空间/动作: ${outline.requiredMotif}` : null,
+    ].filter(Boolean).join('\n');
+    const topic = `[Scene ${sceneNumber}] ${outline.title}\n\n${outline.contentSummary}\n\n${arcContext ? `${arcContext}\n\n` : ''}情感目标: ${outline.emotionalGoal}\n\n请以角色身份表演这场戏，根据对话自然推进。每一轮都必须增加新的行动、信息、阻碍或关系变化；达到情感目标后收束，不要围绕同一观点循环。`;
 
     const roundTable = await tx.roundTable.create({
       data: {
@@ -211,6 +229,13 @@ export async function createSceneFromOutline(
         description: outline.contentSummary,
         contentSummary: outline.contentSummary,
         emotionalGoal: outline.emotionalGoal,
+        contextJson: arcContext ? JSON.stringify({
+          act: outline.act,
+          arcName: outline.arcName,
+          arcGoal: outline.arcGoal,
+          setupPayoff: outline.setupPayoff,
+          requiredMotif: outline.requiredMotif,
+        }) : null,
         sceneOutlineId,
         status: 'draft',
         roundTableId: roundTable.id,

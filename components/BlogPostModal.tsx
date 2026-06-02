@@ -69,14 +69,14 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate blog post');
+        throw new Error(errorData.error || '生成博客文章失败');
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       if (!reader) {
-        throw new Error('No response stream available');
+        throw new Error('响应流不可用');
       }
 
       let buffer = '';
@@ -121,7 +121,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : '未知错误');
     } finally {
       setIsGenerating(false);
       setGeneratingLanguage(null);
@@ -161,11 +161,11 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b flex items-center justify-between">
-          <h2 id="blog-post-modal-title" className="text-2xl font-bold text-gray-900">Generate Blog Post</h2>
+              <h2 id="blog-post-modal-title" className="text-2xl font-bold text-gray-900">生成博客文章</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-            aria-label="Close modal"
+            aria-label="关闭弹窗"
           >
             ×
           </button>
@@ -176,14 +176,14 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
           {!isGenerating && !currentBlogPost && !error && (
             <div className="text-center py-12">
               <p className="text-gray-600 mb-6">
-                Generate a Substack-ready blog post in both English and Chinese from this round table discussion on:
+                根据这次圆桌讨论生成适合发布的中英文博客文章：
               </p>
               <p className="text-xl font-semibold text-gray-900 mb-8">"{topic}"</p>
               <button
                 onClick={generateBlogPost}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Generate Blog Post
+                生成博客文章
               </button>
             </div>
           )}
@@ -198,7 +198,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
               >
-                English
+                英文
               </button>
               <button
                 onClick={() => setCurrentLanguage('zh')}
@@ -217,9 +217,9 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
               <div className="flex items-center gap-3 text-blue-600">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
                 <span>
-                  {generatingLanguage === 'en' && 'Generating English version...'}
-                  {generatingLanguage === 'zh' && 'Generating Chinese version (生成中文版本)...'}
-                  {!generatingLanguage && 'Synthesizing discussion into blog post...'}
+                  {generatingLanguage === 'en' && '正在生成英文版本...'}
+                  {generatingLanguage === 'zh' && '正在生成中文版本...'}
+                  {!generatingLanguage && '正在整理讨论并生成文章...'}
                 </span>
               </div>
               {currentBlogPost && (
@@ -242,7 +242,7 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
-              Error: {error}
+              错误：{error}
             </div>
           )}
         </div>
@@ -254,13 +254,13 @@ export function BlogPostModal({ isOpen, onClose, roundTableId, topic }: BlogPost
               onClick={copyToClipboard}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
             >
-              Copy to Clipboard
+              复制到剪贴板
             </button>
             <button
               onClick={downloadMarkdown}
               className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
             >
-              Download Markdown ({currentLanguage === 'en' ? 'EN' : '中文'})
+              下载 Markdown（{currentLanguage === 'en' ? '英文' : '中文'}）
             </button>
           </div>
         )}

@@ -31,16 +31,16 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
       <div className="text-center py-12">
         <div className="text-6xl mb-4">💬</div>
         <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          No round tables yet
+          暂无圆桌讨论
         </h3>
         <p className="text-gray-500 dark:text-gray-400 mb-6">
-          Create your first round table to get started
+          创建第一个圆桌讨论即可开始
         </p>
         <button
           onClick={() => router.push('/')}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
         >
-          Create Round Table
+          创建圆桌讨论
         </button>
       </div>
     );
@@ -60,7 +60,7 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
   };
 
   const deleteRoundTable = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this round table?')) return;
+    if (!confirm('确定要删除这个圆桌讨论吗？')) return;
 
     try {
       const response = await fetch(`/api/roundtable/${id}`, {
@@ -71,7 +71,7 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
         router.refresh();
       }
     } catch (err) {
-      console.error('Failed to delete round table:', err);
+      console.error('删除圆桌讨论失败:', err);
     }
   };
 
@@ -89,13 +89,13 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
                   {rt.topic}
                 </h3>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(rt.status)}`}>
-                  {rt.status}
+                  {rt.status === 'active' ? '进行中' : rt.status === 'paused' ? '已暂停' : rt.status === 'archived' ? '已归档' : rt.status}
                 </span>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                <span>👥 {rt.agentCount} agents</span>
-                <span>🔄 {rt.roundCount} round{rt.roundCount !== 1 ? 's' : ''}</span>
+                <span>👥 {rt.agentCount} 个智能体</span>
+                <span>🔄 {rt.roundCount} 轮</span>
                 <span>📅 {new Date(rt.createdAt).toLocaleDateString()}</span>
               </div>
 
@@ -110,7 +110,7 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
                 ))}
                 {rt.agents.length > 4 && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    +{rt.agents.length - 4} more
+                    还有 {rt.agents.length - 4} 个
                   </span>
                 )}
               </div>
@@ -121,7 +121,7 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
                 onClick={() => router.push(`/roundtable/${rt.id}`)}
                 className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
               >
-                {rt.status === 'active' ? 'Continue' : 'View'}
+                {rt.status === 'active' ? '继续' : '查看'}
               </button>
 
               {rt.status !== 'archived' && (
@@ -129,7 +129,7 @@ export default function RoundTableList({ roundTables }: RoundTableListProps) {
                   onClick={() => deleteRoundTable(rt.id)}
                   className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 text-sm font-medium"
                 >
-                  Delete
+                  删除
                 </button>
               )}
             </div>

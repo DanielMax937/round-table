@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getMovie } from '@/lib/db/movies';
 import { getSceneOutlinesByMovie } from '@/lib/db/scene-outlines';
 import { getCharactersByMovie } from '@/lib/db/characters';
+import { parseDevelopmentReport, parseStoryBible } from '@/lib/movie/development';
 
 interface RouteParams {
   params: Promise<{ movieId: string }>;
@@ -17,13 +18,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const outlines = await getSceneOutlinesByMovie(movieId);
     const outline = outlines[outlineIndex];
     if (!outline) {
-      return NextResponse.json({ error: 'Outline not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景大纲不存在' }, { status: 404 });
     }
 
     const characterIds = JSON.parse(outline.characterIdsJson || '[]') as string[];
@@ -34,7 +35,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       sceneHeading: outline.title,
       contentSummary: outline.contentSummary,
       emotionalGoal: outline.emotionalGoal,
+      act: outline.act,
+      arcName: outline.arcName,
+      arcGoal: outline.arcGoal,
+      setupPayoff: outline.setupPayoff,
+      requiredMotif: outline.requiredMotif,
       plotSummary: movie.plotSummary || '',
+      developmentReport: parseDevelopmentReport(movie.developmentReportJson),
+      storyBible: parseStoryBible(movie.storyBibleJson),
       characters: sceneChars.map(c => ({
         id: c.id,
         name: c.name,
@@ -48,7 +56,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching scene context:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch context' },
+      { error: '获取场景上下文失败' },
       { status: 500 }
     );
   }

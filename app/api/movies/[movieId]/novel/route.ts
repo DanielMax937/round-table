@@ -6,8 +6,12 @@ import {
   getNovelJob,
   updateNovelJob,
 } from '@/lib/db/novel-jobs';
-import { convertMovieToNovel } from '@/lib/movie/novel-converter';
 import { reviewNovelChapter, repairNovelChapter } from '@/lib/movie/novel-reviewer';
+import {
+  formatDevelopmentContext,
+  parseDevelopmentReport,
+  parseStoryBible,
+} from '@/lib/movie/development';
 
 interface RouteParams {
   params: Promise<{ movieId: string }>;
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const scenes = await getScenesByMovie(movieId);
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (confirmedScenes.length === 0) {
       return NextResponse.json(
-        { error: 'No finalized scenes found. Complete scene execution first.' },
+        { error: '没有找到已定稿场景。请先完成场景生成。' },
         { status: 400 }
       );
     }
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('[Novel] Error starting conversion:', error);
     return NextResponse.json(
-      { error: 'Failed to start conversion', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '启动小说改编失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -83,11 +87,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const job = await getNovelJob(jobId);
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
 
     if (job.movieId !== movieId) {
-      return NextResponse.json({ error: 'Job does not belong to this movie' }, { status: 400 });
+      return NextResponse.json({ error: '任务不属于当前电影项目' }, { status: 400 });
     }
 
     return NextResponse.json({
@@ -107,7 +111,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('[Novel] Error polling job:', error);
     return NextResponse.json(
-      { error: 'Failed to poll job', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '轮询任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -134,6 +138,7 @@ async function runNovelConversion(jobId: string, movieId: string) {
           },
           orderBy: { sceneNumber: 'asc' },
           include: {
+            sceneOutline: true,
             sceneCharacters: {
               include: { character: true },
               orderBy: { order: 'asc' },
@@ -143,13 +148,15 @@ async function runNovelConversion(jobId: string, movieId: string) {
       },
     });
 
-    if (!movie) throw new Error('Movie not found');
-    if (movie.scenes.length === 0) throw new Error('No finalized scenes found');
+    if (!movie) throw new Error('电影项目不存在');
+    if (movie.scenes.length === 0) throw new Error('没有找到已定稿场景');
 
     const totalChapters = movie.scenes.length;
     await updateNovelJob(jobId, { totalChapters });
 
     const chapters: Array<{ chapterNumber: number; title: string; content: string }> = [];
+    const developmentReport = parseDevelopmentReport(movie.developmentReportJson);
+    const storyBible = parseStoryBible(movie.storyBibleJson);
 
     for (let i = 0; i < totalChapters; i++) {
       const scene = movie.scenes[i];
@@ -183,6 +190,15 @@ async function runNovelConversion(jobId: string, movieId: string) {
         emotionalGoal: scene.emotionalGoal || undefined,
         characters: sceneCharacters,
         screenplay: scene.finalizedScript || '',
+        developmentReport,
+        storyBible,
+        scenePlanning: scene.sceneOutline ? {
+          act: scene.sceneOutline.act,
+          arcName: scene.sceneOutline.arcName,
+          arcGoal: scene.sceneOutline.arcGoal,
+          setupPayoff: scene.sceneOutline.setupPayoff,
+          requiredMotif: scene.sceneOutline.requiredMotif,
+        } : null,
         previousChapters,
         chapterNumber,
       };
@@ -212,7 +228,7 @@ async function runNovelConversion(jobId: string, movieId: string) {
     console.error('[Novel] Conversion failed:', error);
     await updateNovelJob(jobId, {
       status: 'failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : '未知错误',
       completedAt: new Date(),
     });
   }
@@ -238,6 +254,15 @@ async function convertWithReview(
       signatureLanguageStyle?: string;
     }>;
     screenplay: string;
+    developmentReport?: ReturnType<typeof parseDevelopmentReport>;
+    storyBible?: ReturnType<typeof parseStoryBible>;
+    scenePlanning?: {
+      act?: string | null;
+      arcName?: string | null;
+      arcGoal?: string | null;
+      setupPayoff?: string | null;
+      requiredMotif?: string | null;
+    } | null;
     previousChapters: Array<{ chapterNumber: number; title: string; content: string }>;
     chapterNumber: number;
   },
@@ -246,25 +271,30 @@ async function convertWithReview(
   const { convertScriptToNovel } = await import('@/lib/movie/novel-converter');
   const { reviewSubversive } = await import('@/lib/movie/subversive-reviewer');
 
-  let lastResult: { chapterNumber: number; title: string; content: string } | null = null;
+  let currentChapter = await convertScriptToNovel(input);
   let lastReview: { passed: boolean; score: number; summary: string; issues: string[]; rewriteInstructions: string } | null = null;
+  let bestChapter = currentChapter;
+  let bestScore = -1;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Convert
-    const chapter = await convertScriptToNovel(input);
-    lastResult = chapter;
+    const developmentContext = buildNovelDevelopmentContext(input);
 
     // Review 1: 基础质量审查
     const reviewInput = {
       movieTitle: input.movieTitle,
       chapterNumber: input.chapterNumber,
-      chapterTitle: chapter.title,
-      chapterContent: chapter.content,
+      chapterTitle: currentChapter.title,
+      chapterContent: currentChapter.content,
+      developmentContext,
       characters: input.characters,
     };
 
     const review = await reviewNovelChapter(reviewInput);
     lastReview = review;
+    if (review.score > bestScore) {
+      bestScore = review.score;
+      bestChapter = currentChapter;
+    }
 
     // Review 2: 颠覆审查（只有基础审查通过才执行）
     let subversivePassed = false;
@@ -275,9 +305,9 @@ async function convertWithReview(
     if (review.passed) {
       const subversiveReview = await reviewSubversive({
         movieTitle: input.movieTitle,
-        sceneHeading: `第${input.chapterNumber}章 ${chapter.title}`,
+        sceneHeading: `第${input.chapterNumber}章 ${currentChapter.title}`,
         sceneDescription: input.sceneDescription,
-        script: chapter.content,
+        script: currentChapter.content,
         characters: input.characters.map(c => ({
           name: c.name,
           personalityTraits: c.personalityTraits,
@@ -296,7 +326,7 @@ async function convertWithReview(
     if (allPassed) {
       console.log(`[Novel] Chapter ${input.chapterNumber} passed all reviews (quality: ${review.score}, subversive: ${subversivePassed})`);
 
-      return chapter;
+      return currentChapter;
     }
 
     // 合并两个审查的反馈
@@ -316,21 +346,19 @@ async function convertWithReview(
       // 将颠覆审查反馈注入修复指令
       const enhancedReview = {
         ...review,
-        rewriteInstructions: review.rewriteInstructions + (subversivePassed ? '' : `\n\n颠覆审查反馈：${subversiveSummary}\n${subversiveSuggestions.join('；')}`),
+        rewriteInstructions: [
+          review.rewriteInstructions,
+          combinedFeedback ? `完整合并反馈：\n${combinedFeedback}` : '',
+        ].filter(Boolean).join('\n\n'),
       };
       const repairedContent = await repairNovelChapter(reviewInput, enhancedReview);
-      // Use repaired content as the chapter for next review
-      lastResult = {
-        chapterNumber: chapter.chapterNumber,
-        title: chapter.title,
-        content: repairedContent,
-      };
+      currentChapter = normalizeRepairedChapter(currentChapter, repairedContent);
     }
   }
 
-  // Return last result even if review failed
-  console.log(`[Novel] Chapter ${input.chapterNumber} using last result after ${maxAttempts} attempts`);
-  return lastResult!;
+  // Return highest-scoring result even if review failed.
+  console.log(`[Novel] Chapter ${input.chapterNumber} using best result after ${maxAttempts} attempts${lastReview ? ` (last score: ${lastReview.score})` : ''}`);
+  return bestChapter;
 }
 
 function assembleNovel(title: string, chapters: Array<{ chapterNumber: number; title: string; content: string }>): string {
@@ -342,4 +370,50 @@ function assembleNovel(title: string, chapters: Array<{ chapterNumber: number; t
   }
 
   return novel.trim();
+}
+
+function normalizeRepairedChapter(
+  previous: { chapterNumber: number; title: string; content: string },
+  repairedContent: string
+) {
+  const cleaned = repairedContent.trim();
+  const lines = cleaned.split('\n');
+  const firstLine = lines[0]?.trim() || '';
+  if (firstLine && (firstLine.startsWith('第') || firstLine.startsWith('Chapter')) && firstLine.length < 40) {
+    return {
+      chapterNumber: previous.chapterNumber,
+      title: firstLine,
+      content: lines.slice(1).join('\n').trim(),
+    };
+  }
+  return {
+    ...previous,
+    content: cleaned,
+  };
+}
+
+function buildNovelDevelopmentContext(input: {
+  developmentReport?: ReturnType<typeof parseDevelopmentReport>;
+  storyBible?: ReturnType<typeof parseStoryBible>;
+  scenePlanning?: {
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  } | null;
+}) {
+  const scenePlanning = [
+    input.scenePlanning?.act ? `幕/阶段：${input.scenePlanning.act}` : null,
+    input.scenePlanning?.arcName ? `叙事弧线：${input.scenePlanning.arcName}` : null,
+    input.scenePlanning?.arcGoal ? `弧线目标：${input.scenePlanning.arcGoal}` : null,
+    input.scenePlanning?.setupPayoff ? `本章埋设/回收：${input.scenePlanning.setupPayoff}` : null,
+    input.scenePlanning?.requiredMotif ? `本章必须出现的物件/空间/动作：${input.scenePlanning.requiredMotif}` : null,
+  ].filter(Boolean).join('\n');
+  const globalContext = formatDevelopmentContext({
+    report: input.developmentReport,
+    bible: input.storyBible,
+    maxChars: 4500,
+  });
+  return [scenePlanning, globalContext].filter(Boolean).join('\n\n');
 }

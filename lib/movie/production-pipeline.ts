@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import {
   createVisualAssetJobs,
-  executeVisualAssetJob,
+  executeVisualAssetJobWithQuality,
   type VisualAssetType,
   type VisualStyle,
 } from '@/lib/movie/visual-assets';
@@ -49,17 +49,17 @@ const LEVEL_PROFILES: Record<ProductionPipelineLevel, {
 }> = {
   quick: {
     label: '快速模式',
-    assetTypes: ['keyframe'],
+    assetTypes: ['character_look', 'environment', 'keyframe'],
     durationSeconds: 8,
   },
   director: {
     label: '导演模式',
-    assetTypes: ['keyframe', 'storyboard', 'environment'],
+    assetTypes: ['character_look', 'environment', 'keyframe', 'storyboard'],
     durationSeconds: 10,
   },
   producer: {
     label: '制片模式',
-    assetTypes: ['keyframe', 'storyboard', 'environment', 'character_look'],
+    assetTypes: ['character_look', 'environment', 'keyframe', 'storyboard', 'comic'],
     durationSeconds: 12,
   },
 };
@@ -71,7 +71,7 @@ export function normalizeProductionPipelineRequest(input: Partial<ProductionPipe
     styles: normalizeStyles(input.styles),
     runVisual: Boolean(input.runVisual),
     runVideo: Boolean(input.runVideo),
-    runQuality: input.runQuality !== false,
+    runQuality: true,
     profileIds: typeof input.profileIds === 'string' && input.profileIds.trim() ? input.profileIds.trim() : '1',
     notes: typeof input.notes === 'string' ? input.notes.trim() : '',
   };
@@ -172,13 +172,11 @@ async function runScenePipeline(
     return { ...result, status: 'blocked', blocker: '场景还没有终稿剧本，无法进入图片/视频产制。' };
   }
 
-  if (request.runQuality) {
-    const scriptReview = await runReview(movieId, 'script', scene.id);
-    result.scriptReviewJobId = scriptReview.id;
-    result.scriptPassed = scriptReview.passed;
-    if (!scriptReview.passed) {
-      return { ...result, status: 'blocked', blocker: '剧本质检未通过，已停止后续图片/视频生成。' };
-    }
+  const scriptReview = await runReview(movieId, 'script', scene.id);
+  result.scriptReviewJobId = scriptReview.id;
+  result.scriptPassed = scriptReview.passed;
+  if (!scriptReview.passed) {
+    return { ...result, status: 'blocked', blocker: '剧本质检未通过，已停止后续图片/视频生成。' };
   }
 
   const characterIds = scene.sceneCharacters.map((item) => item.character.id);
@@ -194,14 +192,8 @@ async function runScenePipeline(
 
   if (request.runVisual) {
     for (const job of visualJobs) {
-      await executeVisualAssetJob(job.id);
-    }
-  }
-
-  if (request.runQuality) {
-    for (const job of visualJobs) {
-      const review = await runReview(movieId, 'visual_asset', job.id);
-      result.visualReviewJobIds.push(review.id);
+      const execution = await executeVisualAssetJobWithQuality(job.id);
+      result.visualReviewJobIds.push(...execution.qualityReviewJobIds);
     }
   }
 
@@ -223,7 +215,7 @@ async function runScenePipeline(
       }
     }
 
-    if (request.runQuality) {
+    if (request.runVideo) {
       for (const job of videoJobs) {
         const review = await runReview(movieId, 'video', job.id);
         result.videoReviewJobIds.push(review.id);

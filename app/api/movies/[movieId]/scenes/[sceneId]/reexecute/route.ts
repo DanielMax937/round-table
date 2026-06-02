@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!scene) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
 
     const result = await executeSceneWithAgents(sceneId, {
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     console.error('Error re-executing scene:', error);
     return NextResponse.json(
       {
-        error: 'Failed to re-execute scene',
-        details: error instanceof Error ? error.message : 'Unknown',
+        error: '重新执行场景失败',
+        details: error instanceof Error ? error.message : '未知错误',
       },
       { status: 500 }
     );

@@ -22,6 +22,7 @@ import {
 } from './script-reviewer';
 import { reviewSubversive, type SubversiveReviewResult } from './subversive-reviewer';
 import { parseScreenplayDialogue } from './script-parser';
+import { formatDevelopmentContext, parseDevelopmentReport, parseStoryBible } from './development';
 
 export interface ExecuteSceneResult {
   sceneId: string;
@@ -30,6 +31,7 @@ export interface ExecuteSceneResult {
   review: SceneScriptReviewResult;
   attempts: number;
   repaired?: boolean;
+  bestEffort?: boolean;
 }
 
 export interface ExecuteSceneProgress {
@@ -63,6 +65,20 @@ export async function executeSceneWithAgents(
   }
 
   const { roundTable } = scene;
+  const developmentReport = parseDevelopmentReport(scene.movie.developmentReportJson);
+  const storyBible = parseStoryBible(scene.movie.storyBibleJson);
+  const scenePlanning = scene.sceneOutline ? {
+    act: scene.sceneOutline.act,
+    arcName: scene.sceneOutline.arcName,
+    arcGoal: scene.sceneOutline.arcGoal,
+    setupPayoff: scene.sceneOutline.setupPayoff,
+    requiredMotif: scene.sceneOutline.requiredMotif,
+  } : null;
+  const developmentContext = buildSceneDevelopmentContext({
+    developmentReport,
+    storyBible,
+    scenePlanning,
+  });
   const agents = await getAgentsByRoundTable(roundTable.id);
   if (agents.length === 0) {
     throw new Error('Scene has no agents');
@@ -75,6 +91,9 @@ export async function executeSceneWithAgents(
     contentSummary: scene.contentSummary || scene.description,
     emotionalGoal: scene.emotionalGoal || '',
     plotSummary: scene.movie.plotSummary || '',
+    developmentReport,
+    storyBible,
+    scenePlanning,
     characters: scene.sceneCharacters.map((sc) => ({
       id: sc.character.id,
       name: sc.character.name,
@@ -90,7 +109,7 @@ export async function executeSceneWithAgents(
 
   await options?.onProgress?.({ phase: 'director' });
   const directorSummary = await generateDirectorSceneSummary(directorInput);
-  await updateScene(sceneId, { contextJson: JSON.stringify({ directorSummary }) });
+  await updateScene(sceneId, { contextJson: JSON.stringify({ directorSummary, scenePlanning }) });
 
   const baseTopicWithDirector = `[导演场景概要]\n${directorSummary}\n\n---\n\n${roundTable.topic}`;
 
@@ -148,6 +167,9 @@ export async function executeSceneWithAgents(
       })),
       messages,
       reviewFeedback: reviewFeedback || undefined,
+      developmentReport,
+      storyBible,
+      scenePlanning,
     };
 
     await options?.onProgress?.({ phase: 'synthesizing', attempt });
@@ -160,6 +182,7 @@ export async function executeSceneWithAgents(
       sceneHeading: scene.heading,
       sceneDescription: scene.description,
       emotionalGoal: scene.emotionalGoal || '',
+      developmentContext,
       characters: scene.sceneCharacters.map((sc) => ({
         name: sc.character.name,
         backstory: sc.character.backstory,
@@ -193,6 +216,7 @@ export async function executeSceneWithAgents(
 
     const context = {
       directorSummary,
+      scenePlanning,
       scriptReview: {
         attempts: attempt,
         passed: review.passed,
@@ -319,6 +343,13 @@ async function repairAndReviewFinalScript(input: {
     await updateScene(input.scene.id, {
       contextJson: JSON.stringify({
         directorSummary: input.directorSummary,
+        scenePlanning: input.scene.sceneOutline ? {
+          act: input.scene.sceneOutline.act,
+          arcName: input.scene.sceneOutline.arcName,
+          arcGoal: input.scene.sceneOutline.arcGoal,
+          setupPayoff: input.scene.sceneOutline.setupPayoff,
+          requiredMotif: input.scene.sceneOutline.requiredMotif,
+        } : null,
         scriptReview: {
           attempts: currentAttempt,
           repairAttempts: repairAttempt,
@@ -353,9 +384,46 @@ async function repairAndReviewFinalScript(input: {
     currentReview = repairReview;
   }
 
-  throw new Error(
-    `Scene script failed LLM review after ${input.attempt - 1} generation attempt(s) and ${maxRepairAttempts} script-doctor repair attempt(s): ${formatReviewFeedback(currentReview)}`
-  );
+  const bestEffortContext = {
+    directorSummary: input.directorSummary,
+    scenePlanning: input.scene.sceneOutline ? {
+      act: input.scene.sceneOutline.act,
+      arcName: input.scene.sceneOutline.arcName,
+      arcGoal: input.scene.sceneOutline.arcGoal,
+      setupPayoff: input.scene.sceneOutline.setupPayoff,
+      requiredMotif: input.scene.sceneOutline.requiredMotif,
+    } : null,
+    scriptReview: {
+      attempts: currentAttempt,
+      repairAttempts: maxRepairAttempts,
+      repaired: true,
+      bestEffort: true,
+      passed: false,
+      score: currentReview.score,
+      aiFeel: currentReview.aiFeel,
+      summary: currentReview.summary,
+      issues: currentReview.issues,
+      rewriteInstructions: currentReview.rewriteInstructions,
+    },
+  };
+
+  await persistScriptDialogueMemories(input.sceneWithMessages, currentMessages);
+  await updateScene(input.scene.id, {
+    finalizedScript: currentScript,
+    status: 'draft',
+    contextJson: JSON.stringify(bestEffortContext),
+  });
+  await notifyHumanReview(input.header, currentScript, currentReview, { bestEffort: true });
+
+  return {
+    sceneId: input.scene.id,
+    fullScript: currentScript,
+    messageCount: input.totalMessages,
+    review: currentReview,
+    attempts: currentAttempt,
+    repaired: true,
+    bestEffort: true,
+  };
 }
 
 function buildReviewInput(input: {
@@ -364,11 +432,26 @@ function buildReviewInput(input: {
   script: string;
   attempt: number;
 }): SceneScriptReviewInput {
+  const developmentReport = parseDevelopmentReport(input.scene.movie.developmentReportJson);
+  const storyBible = parseStoryBible(input.scene.movie.storyBibleJson);
+  const scenePlanning = input.scene.sceneOutline ? {
+    act: input.scene.sceneOutline.act,
+    arcName: input.scene.sceneOutline.arcName,
+    arcGoal: input.scene.sceneOutline.arcGoal,
+    setupPayoff: input.scene.sceneOutline.setupPayoff,
+    requiredMotif: input.scene.sceneOutline.requiredMotif,
+  } : null;
+
   return {
     movieTitle: input.scene.movie.title,
     sceneHeading: input.scene.heading,
     sceneDescription: input.scene.description,
     emotionalGoal: input.scene.emotionalGoal || '',
+    developmentContext: buildSceneDevelopmentContext({
+      developmentReport,
+      storyBible,
+      scenePlanning,
+    }),
     characters: input.scene.sceneCharacters.map((sc) => ({
       name: sc.character.name,
       backstory: sc.character.backstory,
@@ -382,6 +465,32 @@ function buildReviewInput(input: {
     script: input.script,
     attempt: input.attempt,
   };
+}
+
+function buildSceneDevelopmentContext(input: {
+  developmentReport: ReturnType<typeof parseDevelopmentReport>;
+  storyBible: ReturnType<typeof parseStoryBible>;
+  scenePlanning?: {
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
+  } | null;
+}): string {
+  const planning = [
+    input.scenePlanning?.act ? `幕/阶段：${input.scenePlanning.act}` : null,
+    input.scenePlanning?.arcName ? `叙事弧线：${input.scenePlanning.arcName}` : null,
+    input.scenePlanning?.arcGoal ? `弧线目标：${input.scenePlanning.arcGoal}` : null,
+    input.scenePlanning?.setupPayoff ? `本场埋设/回收：${input.scenePlanning.setupPayoff}` : null,
+    input.scenePlanning?.requiredMotif ? `必须出现的物件/空间/动作：${input.scenePlanning.requiredMotif}` : null,
+  ].filter(Boolean).join('\n');
+  const globalContext = formatDevelopmentContext({
+    report: input.developmentReport,
+    bible: input.storyBible,
+    maxChars: 4500,
+  });
+  return [planning, globalContext].filter(Boolean).join('\n\n');
 }
 
 async function runDialogueAttempt(input: {
@@ -605,10 +714,11 @@ function normalizeName(name: string): string {
 async function notifyHumanReview(
   header: string | undefined,
   script: string,
-  review: SceneScriptReviewResult
+  review: SceneScriptReviewResult,
+  options?: { bestEffort?: boolean }
 ): Promise<void> {
   const reviewSummary = [
-    '✅ LLM 编剧评审通过',
+    options?.bestEffort ? '⚠️ LLM 编剧评审未完全通过，已保存 best effort 版本' : '✅ LLM 编剧评审通过',
     `评分: ${review.score}/10`,
     `AI 感: ${review.aiFeel}`,
     review.summary ? `摘要: ${review.summary}` : null,

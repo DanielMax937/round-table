@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 import { reviewSceneScript } from './script-reviewer';
 import { parseScreenplayDialogue } from './script-parser';
+import { getVisualAssetImagePaths } from './asset-files';
 
 export type QualityTargetType = 'script' | 'visual_asset' | 'video';
 
@@ -62,7 +63,7 @@ export async function createQualityReviewJob(movieId: string, request: QualityRe
   return job;
 }
 
-export async function executeQualityReviewJob(jobId: string): Promise<void> {
+export async function executeQualityReviewJob(jobId: string) {
   const job = await prisma.qualityReviewJob.findUnique({ where: { id: jobId } });
   if (!job) {
     throw new Error(`Quality review job ${jobId} not found`);
@@ -79,7 +80,7 @@ export async function executeQualityReviewJob(jobId: string): Promise<void> {
 
   try {
     const result = await reviewTarget(job.movieId, job.targetType as QualityTargetType, job.targetId);
-    await prisma.qualityReviewJob.update({
+    return await prisma.qualityReviewJob.update({
       where: { id: jobId },
       data: {
         status: 'completed',
@@ -214,7 +215,7 @@ async function reviewVisualAsset(movieId: string, visualAssetJobId: string): Pro
   });
   if (!job) throw new Error('Visual asset job not found');
 
-  const imagePaths = extractExistingFiles([job.result || '', job.error || ''], ['.png', '.jpg', '.jpeg', '.webp']);
+  const imagePaths = getVisualAssetImagePaths(job);
   const llmReview = await reviewPromptArtifact({
     targetKind: 'visual asset',
     title: job.title,

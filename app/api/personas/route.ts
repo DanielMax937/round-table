@@ -15,7 +15,7 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching personas:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch personas' },
+            { error: '获取智能体人格失败' },
             { status: 500 }
         );
     }
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         // Validate required fields
         if (!body.name || !body.description || !body.systemPrompt) {
             return NextResponse.json(
-                { error: 'Missing required fields: name, description, systemPrompt' },
+                { error: '缺少必填字段：name、description、systemPrompt' },
                 { status: 400 }
             );
         }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Error creating persona:', error);
         return NextResponse.json(
-            { error: 'Failed to create persona' },
+            { error: '创建智能体人格失败' },
             { status: 500 }
         );
     }

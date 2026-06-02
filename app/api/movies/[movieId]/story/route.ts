@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
     const story = movie.storyProposalJson
       ? (JSON.parse(movie.storyProposalJson) as Record<string, string>)
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching story:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch story' },
+      { error: '获取故事失败' },
       { status: 500 }
     );
   }

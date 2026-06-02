@@ -3,6 +3,7 @@ import { getMovie } from '@/lib/db/movies';
 import { getCharactersByMovie } from '@/lib/db/characters';
 import { createSceneOutlines, getSceneOutlinesByMovie } from '@/lib/db/scene-outlines';
 import { generateSceneOutline } from '@/lib/movie/outline-generator';
+import { parseDevelopmentReport, parseStoryBible } from '@/lib/movie/development';
 import type { StoryProposal } from '@/lib/movie/types';
 
 interface RouteParams {
@@ -15,13 +16,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const proposalJson = movie.storyProposalJson;
     if (!proposalJson) {
       return NextResponse.json(
-        { error: 'No story proposal confirmed.' },
+        { error: '尚未确认故事提案。' },
         { status: 400 }
       );
     }
@@ -29,15 +30,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const characters = await getCharactersByMovie(movieId);
     if (characters.length === 0) {
       return NextResponse.json(
-        { error: 'No characters. Generate characters first.' },
+        { error: '还没有角色。请先生成角色。' },
+        { status: 400 }
+      );
+    }
+    if (!movie.developmentReportJson && !movie.storyBibleJson) {
+      return NextResponse.json(
+        { error: '请先生成开发读本 / 故事圣经，再生成场景大纲。' },
         { status: 400 }
       );
     }
 
+    const body = await request.json().catch(() => ({}));
+    const useFourPartStructure = body?.useFourPartStructure === true;
     const proposal = JSON.parse(proposalJson) as StoryProposal;
     const items = await generateSceneOutline(
       proposal,
-      characters.map(c => ({ id: c.id, name: c.name }))
+      characters.map(c => ({ id: c.id, name: c.name })),
+      {
+        report: parseDevelopmentReport(movie.developmentReportJson),
+        bible: parseStoryBible(movie.storyBibleJson),
+        useFourPartStructure,
+      }
     );
 
     await createSceneOutlines(movieId, items);
@@ -53,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error generating outline:', error);
     return NextResponse.json(
-      { error: 'Failed to generate outline', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '生成场景大纲失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -68,7 +82,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching outline:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch outline' },
+      { error: '获取场景大纲失败' },
       { status: 500 }
     );
   }

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const body = await request.json();
@@ -21,20 +21,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       const all = JSON.parse(movie.storyProposalsJson || '[]');
       const selected = all[body.proposalIndex];
       if (!selected) {
-        return NextResponse.json({ error: 'Invalid proposal index' }, { status: 400 });
+        return NextResponse.json({ error: '提案序号无效' }, { status: 400 });
       }
       proposalJson = JSON.stringify(selected);
     } else if (body.proposal && typeof body.proposal === 'object') {
       proposalJson = JSON.stringify(body.proposal);
     } else {
       return NextResponse.json(
-        { error: 'Pass proposalIndex (0-2) or proposal object' },
+        { error: '请传入 proposalIndex（0-2）或完整提案对象' },
         { status: 400 }
       );
     }
 
     await updateMovie(movieId, {
       storyProposalJson: proposalJson,
+      developmentReportJson: null,
+      storyBibleJson: null,
       workflowPhase: 'characters',
     });
 
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error confirming story:', error);
     return NextResponse.json(
-      { error: 'Failed to confirm story', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '确认故事失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

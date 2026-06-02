@@ -14,14 +14,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       where: { id: sceneId },
     });
     if (!scene || scene.movieId !== movieId) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
     await updateScene(sceneId, { status: 'confirmed' });
     return NextResponse.json({ success: true, status: 'confirmed' });
   } catch (error) {
     console.error('Error confirming scene:', error);
     return NextResponse.json(
-      { error: 'Failed to confirm scene' },
+      { error: '确认场景失败' },
       { status: 500 }
     );
   }

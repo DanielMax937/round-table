@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         if (!job) {
             return NextResponse.json(
-                { error: 'Job not found' },
+                { error: '任务不存在' },
                 { status: 404 }
             );
         }
@@ -75,8 +75,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         console.error('Error fetching job:', error);
         return NextResponse.json(
             {
-                error: 'Failed to fetch job status',
-                details: error instanceof Error ? error.message : 'Unknown error'
+                error: '获取任务状态失败',
+                details: error instanceof Error ? error.message : '未知错误'
             },
             { status: 500 }
         );

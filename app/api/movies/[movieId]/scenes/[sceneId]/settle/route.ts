@@ -26,13 +26,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!scene || scene.movieId !== movieId) {
-      return NextResponse.json({ error: 'Scene not found' }, { status: 404 });
+      return NextResponse.json({ error: '场景不存在' }, { status: 404 });
     }
 
     const script = scene.finalizedScript;
     if (!script?.trim()) {
       return NextResponse.json(
-        { error: 'Scene has no script. Finalize the scene first.' },
+        { error: '当前场景没有剧本。请先完成定稿。' },
         { status: 400 }
       );
     }
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error settling memory:', error);
     return NextResponse.json(
-      { error: 'Failed to settle', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '确认场景失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

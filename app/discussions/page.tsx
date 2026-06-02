@@ -31,20 +31,20 @@ export default async function DiscussionsPage() {
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        Discussion Results
+                        讨论记录
                     </h1>
                     <Link
                         href="/"
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                        + New Discussion
+                        + 新建讨论
                     </Link>
                 </div>
 
                 {discussions.length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
                         <p className="text-gray-600 dark:text-gray-400 text-lg">
-                            No discussions yet. Create your first one!
+                            暂无讨论记录。先创建一个圆桌讨论吧。
                         </p>
                     </div>
                 ) : (
@@ -62,8 +62,8 @@ export default async function DiscussionsPage() {
                                                 {discussion.topic}
                                             </h2>
                                             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                                <span>👥 {discussion.agentCount} agents</span>
-                                                <span>🔄 {discussion.roundCount} rounds</span>
+                                                <span>👥 {discussion.agentCount} 个智能体</span>
+                                                <span>🔄 {discussion.roundCount} 轮</span>
                                                 <span>📅 {new Date(discussion.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="mt-3 flex flex-wrap gap-2">
@@ -77,7 +77,7 @@ export default async function DiscussionsPage() {
                                                 ))}
                                                 {discussion.agents.length > 4 && (
                                                     <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-500">
-                                                        +{discussion.agents.length - 4} more
+                                                        还有 {discussion.agents.length - 4} 个
                                                     </span>
                                                 )}
                                             </div>
@@ -85,15 +85,15 @@ export default async function DiscussionsPage() {
                                         <div className="ml-4">
                                             {discussion.status === 'active' && discussion.roundCount >= discussion.maxRounds ? (
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                                    Completed ({discussion.roundCount}/{discussion.maxRounds})
+                                                    已完成（{discussion.roundCount}/{discussion.maxRounds}）
                                                 </span>
                                             ) : discussion.status === 'active' ? (
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                                    Active ({discussion.roundCount}/{discussion.maxRounds})
+                                                    进行中（{discussion.roundCount}/{discussion.maxRounds}）
                                                 </span>
                                             ) : discussion.status === 'paused' ? (
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                                                    Paused ({discussion.roundCount}/{discussion.maxRounds})
+                                                    已暂停（{discussion.roundCount}/{discussion.maxRounds}）
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">

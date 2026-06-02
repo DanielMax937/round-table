@@ -29,11 +29,11 @@ export default function PersonasPage() {
     const fetchPersonas = async () => {
         try {
             const response = await fetch('/api/personas');
-            if (!response.ok) throw new Error('Failed to fetch personas');
+            if (!response.ok) throw new Error('加载智能体人格失败');
             const data = await response.json();
             setPersonas(data.personas);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load personas');
+            setError(err instanceof Error ? err.message : '加载智能体人格失败');
         } finally {
             setIsLoading(false);
         }
@@ -47,13 +47,13 @@ export default function PersonasPage() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to delete persona');
+                throw new Error(data.error || '删除人格失败');
             }
 
             await fetchPersonas();
             setDeleteConfirm(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete persona');
+            setError(err instanceof Error ? err.message : '删除人格失败');
         }
     };
 
@@ -66,7 +66,7 @@ export default function PersonasPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <div className="text-lg">Loading personas...</div>
+                <div className="text-lg">正在加载智能体人格...</div>
             </div>
         );
     }
@@ -76,16 +76,16 @@ export default function PersonasPage() {
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-2">
-                    <h1 className="text-3xl font-bold">Agent Personas</h1>
+                    <h1 className="text-3xl font-bold">智能体人格</h1>
                     <button
                         onClick={() => router.push('/')}
                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                     >
-                        ← Back to Home
+                        ← 返回首页
                     </button>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400">
-                    Manage agent personas for round table discussions
+                    管理圆桌讨论中使用的智能体人格
                 </p>
             </div>
 
@@ -97,7 +97,7 @@ export default function PersonasPage() {
                         onClick={() => setError('')}
                         className="ml-4 text-sm underline"
                     >
-                        Dismiss
+                        关闭
                     </button>
                 </div>
             )}
@@ -106,7 +106,7 @@ export default function PersonasPage() {
             {showForm && (
                 <div className="mb-8 p-6 bg-white dark:bg-gray-800 shadow-lg rounded-lg">
                     <h2 className="text-xl font-semibold mb-4">
-                        {editingPersona ? 'Edit Persona' : 'Create New Persona'}
+                        {editingPersona ? '编辑人格' : '新建人格'}
                     </h2>
                     <PersonaForm
                         persona={editingPersona || undefined}
@@ -125,7 +125,7 @@ export default function PersonasPage() {
                     onClick={() => setShowForm(true)}
                     className="mb-6 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
                 >
-                    + Create New Persona
+                    + 新建人格
                 </button>
             )}
 
@@ -133,7 +133,7 @@ export default function PersonasPage() {
             <div className="space-y-4">
                 {personas.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
-                        No personas found. Create one to get started!
+                        暂无人格。新建一个即可开始使用。
                     </div>
                 ) : (
                     personas.map((persona) => (
@@ -147,7 +147,7 @@ export default function PersonasPage() {
                                         <h3 className="text-xl font-semibold">{persona.name}</h3>
                                         {persona.isDefault && (
                                             <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                                                Default
+                                                默认
                                             </span>
                                         )}
                                     </div>
@@ -156,7 +156,7 @@ export default function PersonasPage() {
                                     </p>
                                     <details className="text-sm">
                                         <summary className="cursor-pointer text-blue-500 hover:text-blue-600">
-                                            View System Prompt
+                                            查看系统提示词
                                         </summary>
                                         <pre className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-xs overflow-x-auto whitespace-pre-wrap">
                                             {persona.systemPrompt}
@@ -172,7 +172,7 @@ export default function PersonasPage() {
                                         }}
                                         className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                     >
-                                        Edit
+                                        编辑
                                     </button>
 
                                     {deleteConfirm === persona.id ? (
@@ -181,13 +181,13 @@ export default function PersonasPage() {
                                                 onClick={() => handleDelete(persona.id)}
                                                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                                             >
-                                                Confirm
+                                                确认
                                             </button>
                                             <button
                                                 onClick={() => setDeleteConfirm(null)}
                                                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                             >
-                                                Cancel
+                                                取消
                                             </button>
                                         </div>
                                     ) : (
@@ -195,7 +195,7 @@ export default function PersonasPage() {
                                             onClick={() => setDeleteConfirm(persona.id)}
                                             className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                                         >
-                                            Delete
+                                            删除
                                         </button>
                                     )}
                                 </div>

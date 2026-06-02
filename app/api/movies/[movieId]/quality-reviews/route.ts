@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching quality review jobs:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch quality review jobs', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '获取质量校验任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error creating quality review job:', error);
     return NextResponse.json(
-      { error: 'Failed to create quality review job', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '创建质量校验任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -61,12 +61,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json().catch(() => ({}));
     const jobId = typeof body.jobId === 'string' ? body.jobId : '';
     if (!jobId) {
-      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      return NextResponse.json({ error: '任务 ID 为必填项' }, { status: 400 });
     }
 
     const job = await prisma.qualityReviewJob.findFirst({ where: { id: jobId, movieId } });
     if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      return NextResponse.json({ error: '任务不存在' }, { status: 404 });
     }
     if (job.status === 'running') {
       return NextResponse.json({ job: serializeReviewJob(job) }, { status: 202 });
@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error running quality review job:', error);
     return NextResponse.json(
-      { error: 'Failed to run quality review job', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '执行质量校验任务失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

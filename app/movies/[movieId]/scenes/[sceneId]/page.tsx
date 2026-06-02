@@ -39,7 +39,7 @@ export default async function ScenePage({ params }: PageProps) {
             href={`/movies/${movieId}`}
             className="text-blue-500 hover:text-blue-600 text-sm font-medium"
           >
-            &larr; Back to {scene.movie.title}
+            &larr; 返回《{scene.movie.title}》
           </Link>
         </div>
 

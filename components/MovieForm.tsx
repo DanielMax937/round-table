@@ -26,13 +26,13 @@ export default function MovieForm() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create movie');
+        throw new Error(data.error || '创建电影项目失败');
       }
 
       const { movie } = await response.json();
       router.push(`/movies/${movie.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -48,14 +48,14 @@ export default function MovieForm() {
 
       <div>
         <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Movie Title
+          电影标题
         </label>
         <input
           id="title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. The Last Heist"
+          placeholder="例如：最后一次行动"
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
         />
@@ -63,13 +63,13 @@ export default function MovieForm() {
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Description (optional)
+          简介（可选）
         </label>
         <textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief synopsis or premise..."
+          placeholder="简要梗概或核心设定..."
           rows={3}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
@@ -80,7 +80,7 @@ export default function MovieForm() {
         disabled={isSubmitting || !title.trim()}
         className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
       >
-        {isSubmitting ? 'Creating...' : 'Create Movie'}
+        {isSubmitting ? '创建中...' : '创建纯手动项目'}
       </button>
     </form>
   );

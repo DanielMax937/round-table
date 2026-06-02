@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { chatCompletion } from '@/lib/llm/client';
+import { createQualityReviewJob, executeQualityReviewJob } from './quality-reviewer';
+import { getVisualAssetImagePaths } from './asset-files';
 
 export type VisualAssetType =
   | 'comic'
@@ -27,6 +29,12 @@ export interface VisualAssetRequest {
   characterIds?: string[];
   run?: boolean;
   notes?: string;
+}
+
+export interface VisualAssetExecutionResult {
+  jobId: string;
+  qualityReviewJobIds: string[];
+  bestEffort: boolean;
 }
 
 interface MovieForVisuals {
@@ -66,11 +74,20 @@ interface MovieForVisuals {
   }>;
 }
 
+const VISUAL_ASSET_ORDER: VisualAssetType[] = [
+  'character_look',
+  'environment',
+  'keyframe',
+  'storyboard',
+  'comic',
+];
+const DEFAULT_VISUAL_QUALITY_MAX_ATTEMPTS = 3;
+
 export function normalizeVisualAssetRequest(input: Partial<VisualAssetRequest>): VisualAssetRequest {
-  const assetTypes = normalizeList(input.assetTypes, ['storyboard']);
+  const assetTypes = normalizeVisualAssetTypes(normalizeList(input.assetTypes, ['character_look', 'environment']));
   const styles = normalizeList(input.styles, ['live_action']);
   return {
-    assetTypes: assetTypes.filter(isVisualAssetType),
+    assetTypes,
     styles: styles.filter(isVisualStyle),
     sceneIds: normalizeList(input.sceneIds, []),
     characterIds: normalizeList(input.characterIds, []),
@@ -127,14 +144,88 @@ export async function createVisualAssetJobs(movieId: string, request: VisualAsse
     });
     jobs.push(job);
 
-    if (request.run) {
-      executeVisualAssetJob(job.id).catch((error) => {
-        console.error(`[VisualAssetJob] ${job.id} failed`, error);
+  }
+
+  if (request.run) {
+    executeVisualAssetJobsSequentially(jobs.map((job) => job.id)).catch((error) => {
+      console.error('[VisualAssetJobs] sequential run failed', error);
+    });
+  }
+
+  return jobs;
+}
+
+export async function executeVisualAssetJobsSequentially(jobIds: string[]): Promise<void> {
+  for (const jobId of jobIds) {
+    const job = await prisma.visualAssetJob.findUnique({ where: { id: jobId } });
+    if (!job || job.status === 'completed') continue;
+
+    try {
+      await executeVisualAssetJobWithQuality(jobId);
+    } catch (error) {
+      console.error(`[VisualAssetJob] ${jobId} failed`, error);
+    }
+  }
+}
+
+export async function executeVisualAssetJobWithQuality(
+  jobId: string,
+  options?: { maxAttempts?: number }
+): Promise<VisualAssetExecutionResult> {
+  const originalJob = await prisma.visualAssetJob.findUnique({ where: { id: jobId } });
+  if (!originalJob) {
+    throw new Error(`Visual asset job ${jobId} not found`);
+  }
+
+  const maxAttempts = Math.max(
+    1,
+    Number(options?.maxAttempts || process.env.VISUAL_ASSET_QUALITY_MAX_ATTEMPTS || DEFAULT_VISUAL_QUALITY_MAX_ATTEMPTS)
+  );
+  const reviewJobIds: string[] = [];
+  let lastReview: Awaited<ReturnType<typeof executeQualityReviewJob>> | null = null;
+  let lastGenerationError = '';
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1) {
+      resetVisualAssetOutputDir(jobId);
+    }
+
+    try {
+      await executeVisualAssetJob(jobId);
+    } catch (error) {
+      lastGenerationError = error instanceof Error ? error.message : String(error);
+      if (attempt >= maxAttempts) {
+        throw error;
+      }
+      await prepareVisualAssetRetry(jobId, {
+        basePrompt: originalJob.prompt,
+        baseCodexPrompt: originalJob.codexPrompt,
+        attempt,
+        feedback: `上一轮图片生成命令失败，未找到可交付图片文件。\n${lastGenerationError}`,
+      });
+      continue;
+    }
+
+    const review = await runVisualAssetQualityReview(jobId);
+    reviewJobIds.push(review.id);
+    lastReview = review;
+
+    if (review.passed) {
+      return { jobId, qualityReviewJobIds: reviewJobIds, bestEffort: false };
+    }
+
+    if (attempt < maxAttempts) {
+      await prepareVisualAssetRetry(jobId, {
+        basePrompt: originalJob.prompt,
+        baseCodexPrompt: originalJob.codexPrompt,
+        attempt,
+        feedback: formatVisualReviewFeedback(review),
       });
     }
   }
 
-  return jobs;
+  await markVisualAssetBestEffort(jobId, lastReview, lastGenerationError);
+  return { jobId, qualityReviewJobIds: reviewJobIds, bestEffort: true };
 }
 
 export async function executeVisualAssetJob(jobId: string): Promise<void> {
@@ -152,8 +243,8 @@ export async function executeVisualAssetJob(jobId: string): Promise<void> {
     },
   });
 
-  const outputDir = path.join(process.cwd(), 'outputs', 'visual-assets', job.id);
-  fs.mkdirSync(outputDir, { recursive: true });
+  const outputDir = visualAssetOutputDir(job.id);
+  resetVisualAssetOutputDir(job.id);
   const executablePrompt = buildExecutableCodexPrompt(job.codexPrompt, outputDir);
   const args = buildCodexExecutionArgs(executablePrompt);
   const executionCommand = shellQuoteCommand(['codex', ...args]);
@@ -173,15 +264,203 @@ export async function executeVisualAssetJob(jobId: string): Promise<void> {
       },
     });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message.slice(0, 4000) : String(error);
+    const imagePaths = getVisualAssetImagePaths({ id: jobId, result: '', error: errorMessage });
+    if (imagePaths.length > 0) {
+      await prisma.visualAssetJob.update({
+        where: { id: jobId },
+        data: {
+          status: 'completed',
+          result: buildRecoveredImageResult(imagePaths, errorMessage),
+          error: null,
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
     await prisma.visualAssetJob.update({
       where: { id: jobId },
       data: {
         status: 'failed',
-        error: error instanceof Error ? error.message.slice(0, 4000) : String(error),
+        error: errorMessage,
         completedAt: new Date(),
       },
     });
     throw error;
+  }
+}
+
+export async function markFailedVisualAssetJobsWithImagesCompleted(movieId: string): Promise<void> {
+  const failedJobs = await prisma.visualAssetJob.findMany({
+    where: { movieId, status: 'failed' },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+
+  for (const job of failedJobs) {
+    const imagePaths = getVisualAssetImagePaths(job);
+    if (!imagePaths.length) continue;
+
+    await prisma.visualAssetJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'completed',
+        result: buildRecoveredImageResult(imagePaths, job.error || '图片生成进程曾返回失败，但本地已找到图片文件。'),
+        error: null,
+        completedAt: job.completedAt || new Date(),
+      },
+    });
+  }
+}
+
+async function runVisualAssetQualityReview(jobId: string) {
+  const job = await prisma.visualAssetJob.findUnique({ where: { id: jobId } });
+  if (!job) {
+    throw new Error(`Visual asset job ${jobId} not found`);
+  }
+
+  const reviewJob = await createQualityReviewJob(job.movieId, {
+    targetType: 'visual_asset',
+    targetId: job.id,
+    run: false,
+  });
+  try {
+    return await executeQualityReviewJob(reviewJob.id);
+  } catch (error) {
+    const failedReview = await prisma.qualityReviewJob.findUnique({ where: { id: reviewJob.id } });
+    if (failedReview) return failedReview;
+    throw error;
+  }
+}
+
+async function prepareVisualAssetRetry(
+  jobId: string,
+  input: {
+    basePrompt: string;
+    baseCodexPrompt: string;
+    attempt: number;
+    feedback: string;
+  }
+) {
+  const retryNumber = input.attempt + 1;
+  const repairBlock = [
+    '',
+    `# 自动质检重生要求（第 ${retryNumber} 轮，最多 ${DEFAULT_VISUAL_QUALITY_MAX_ATTEMPTS} 轮）`,
+    '上一轮未达到可交付标准，本轮必须根据以下反馈重新生成图片，不要复用上一轮图片或只解释文字。',
+    input.feedback,
+  ].join('\n');
+  const prompt = `${input.basePrompt}\n${repairBlock}`;
+  const codexPrompt = `${input.baseCodexPrompt}\n\n${repairBlock}`;
+
+  await prisma.visualAssetJob.update({
+    where: { id: jobId },
+    data: {
+      status: 'pending',
+      prompt,
+      codexPrompt,
+      codexCommand: buildRequestedCodexCommand(codexPrompt),
+      executionCommand: null,
+      result: null,
+      error: null,
+      startedAt: null,
+      completedAt: null,
+    },
+  });
+}
+
+async function markVisualAssetBestEffort(
+  jobId: string,
+  review: Awaited<ReturnType<typeof executeQualityReviewJob>> | null,
+  generationError: string
+) {
+  const job = await prisma.visualAssetJob.findUnique({ where: { id: jobId } });
+  if (!job) return;
+
+  const imagePaths = getVisualAssetImagePaths(job);
+  if (!imagePaths.length && job.status !== 'completed') {
+    await prisma.visualAssetJob.update({
+      where: { id: jobId },
+      data: {
+        status: 'failed',
+        error: generationError || '图片生成在 3 轮自动重试后仍没有可交付图片文件。',
+        completedAt: new Date(),
+      },
+    });
+    return;
+  }
+
+  const bestEffortResult = [
+    job.result || '',
+    '',
+    'Best effort：图片已生成，但自动质检在 3 轮生成/重生后仍未完全通过。当前版本作为最佳努力结果保留，可手动重新生成。',
+    review ? `最后一次质检：${review.summary || '无摘要'}` : '',
+    review?.error ? `质检错误：${review.error}` : '',
+    review?.issuesJson ? `问题：${safeJoinJsonArray(review.issuesJson)}` : '',
+    review?.repairInstructions ? `后续修复建议：${review.repairInstructions}` : '',
+  ].filter(Boolean).join('\n');
+
+  await prisma.visualAssetJob.update({
+    where: { id: jobId },
+    data: {
+      status: 'completed',
+      result: truncate(bestEffortResult, 12000),
+      error: null,
+      completedAt: new Date(),
+    },
+  });
+}
+
+function formatVisualReviewFeedback(review: Awaited<ReturnType<typeof executeQualityReviewJob>>): string {
+  return [
+    `质检结论: ${review.summary || '未给出摘要'}`,
+    `评分: ${review.score ?? '-'} / 10`,
+    `AI 感: ${review.aiFeel || '-'}`,
+    review.error ? `质检错误: ${review.error}` : '',
+    `问题: ${safeJoinJsonArray(review.issuesJson) || '未列出具体问题'}`,
+    `修复指令: ${review.repairInstructions || '减少 AI 味，补足角色、环境、镜头、交付文件一致性。'}`,
+  ].filter(Boolean).join('\n');
+}
+
+function buildRecoveredImageResult(imagePaths: string[], errorMessage: string): string {
+  return truncate([
+    'Best effort：图片生成命令返回失败或超时，但本地输出目录已经找到可交付图片文件，任务状态已自动修正为完成。',
+    '图片文件:',
+    ...imagePaths,
+    '',
+    '原始错误:',
+    errorMessage,
+  ].join('\n'), 12000);
+}
+
+function resetVisualAssetOutputDir(jobId: string): void {
+  const outputDir = visualAssetOutputDir(jobId);
+  if (fs.existsSync(outputDir)) {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(outputDir, { recursive: true });
+}
+
+function visualAssetOutputDir(jobId: string): string {
+  return path.join(process.cwd(), 'outputs', 'visual-assets', jobId);
+}
+
+function normalizeVisualAssetTypes(values: string[]): VisualAssetType[] {
+  const seen = new Set<VisualAssetType>();
+  for (const value of values) {
+    if (isVisualAssetType(value)) seen.add(value);
+  }
+  return VISUAL_ASSET_ORDER.filter((assetType) => seen.has(assetType));
+}
+
+function safeJoinJsonArray(value: string): string {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string').join('；')
+      : '';
+  } catch {
+    return '';
   }
 }
 
@@ -202,7 +481,7 @@ async function buildVisualAssetSpecs(movie: MovieForVisuals, request: VisualAsse
   for (const assetType of request.assetTypes) {
     if (assetType === 'character_look') {
       for (const character of characterTargets) {
-        const prompt = await generateVisualPromptWithLLM({
+        const prompt = await generateVisualPrompt({
           movie,
           assetType,
           styles: request.styles,
@@ -224,7 +503,7 @@ async function buildVisualAssetSpecs(movie: MovieForVisuals, request: VisualAsse
     }
 
     for (const scene of sceneTargets) {
-      const prompt = await generateVisualPromptWithLLM({
+      const prompt = await generateVisualPrompt({
         movie,
         assetType,
         styles: request.styles,
@@ -246,6 +525,33 @@ async function buildVisualAssetSpecs(movie: MovieForVisuals, request: VisualAsse
   }
 
   return specs;
+}
+
+async function generateVisualPrompt(input: {
+  movie: MovieForVisuals;
+  assetType: VisualAssetType;
+  styles: VisualStyle[];
+  notes?: string;
+  scene?: MovieForVisuals['scenes'][number];
+  character?: MovieForVisuals['characters'][number];
+}): Promise<string> {
+  try {
+    return await generateVisualPromptWithLLM(input);
+  } catch (error) {
+    console.warn('[VisualAssets] Falling back to deterministic visual prompt', {
+      assetType: input.assetType,
+      sceneId: input.scene?.id,
+      characterId: input.character?.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (input.character) {
+      return buildCharacterLookPrompt(input.movie, input.character, input.styles, input.notes);
+    }
+    if (input.scene) {
+      return buildSceneVisualPrompt(input.movie, input.scene, input.assetType, input.styles, input.notes);
+    }
+    throw error;
+  }
 }
 
 async function generateVisualPromptWithLLM(input: {

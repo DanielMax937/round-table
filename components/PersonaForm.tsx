@@ -51,13 +51,13 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to save persona');
+                throw new Error(data.error || '保存人格失败');
             }
 
             const data = await response.json();
             onSave(data.persona);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
         } finally {
             setIsSaving(false);
         }
@@ -73,7 +73,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
 
             <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2">
-                    Name *
+                    名称 *
                 </label>
                 <input
                     type="text"
@@ -82,13 +82,13 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     onChange={(e) => setName(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
-                    placeholder="e.g., The Analyst"
+                    placeholder="例如：分析师"
                 />
             </div>
 
             <div>
                 <label htmlFor="description" className="block text-sm font-medium mb-2">
-                    Description *
+                    描述 *
                 </label>
                 <input
                     type="text"
@@ -97,13 +97,13 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     onChange={(e) => setDescription(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
-                    placeholder="Brief description of the persona's role"
+                    placeholder="简要描述这个人格的角色和职责"
                 />
             </div>
 
             <div>
                 <label htmlFor="systemPrompt" className="block text-sm font-medium mb-2">
-                    System Prompt *
+                    系统提示词 *
                 </label>
                 <textarea
                     id="systemPrompt"
@@ -112,13 +112,13 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     required
                     rows={8}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 font-mono text-sm"
-                    placeholder="You are [role]. Your role is to:&#10;- [Responsibility 1]&#10;- [Responsibility 2]"
+                    placeholder="你是[角色]。你的职责是：&#10;- [职责 1]&#10;- [职责 2]"
                 />
             </div>
 
             <div>
                 <label htmlFor="descriptionZh" className="block text-sm font-medium mb-2">
-                    Chinese Description (Optional)
+                    中文描述（可选）
                 </label>
                 <input
                     type="text"
@@ -129,7 +129,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     placeholder="简要描述此角色的职责"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    If provided, this will be shown when browsing personas
+                    填写后会在人格列表中展示
                 </p>
             </div>
 
@@ -142,7 +142,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <label htmlFor="isDefault" className="ml-2 text-sm">
-                    Mark as default persona
+                    设为默认人格
                 </label>
             </div>
 
@@ -152,7 +152,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     disabled={isSaving}
                     className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSaving ? 'Saving...' : persona ? 'Update Persona' : 'Create Persona'}
+                    {isSaving ? '保存中...' : persona ? '更新人格' : '创建人格'}
                 </button>
                 <button
                     type="button"
@@ -160,7 +160,7 @@ export default function PersonaForm({ persona, onSave, onCancel }: PersonaFormPr
                     disabled={isSaving}
                     className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
                 >
-                    Cancel
+                    取消
                 </button>
             </div>
         </form>

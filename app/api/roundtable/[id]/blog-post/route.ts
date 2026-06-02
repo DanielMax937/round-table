@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: '未配置 OpenAI API 密钥' },
         { status: 500 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const roundTable = await getRoundTable(id);
     if (!roundTable) {
       return NextResponse.json(
-        { error: 'Round table not found' },
+        { error: '圆桌讨论不存在' },
         { status: 404 }
       );
     }
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const messages = await getAllMessagesForRoundTable(id);
     if (messages.length === 0) {
       return NextResponse.json(
-        { error: 'No discussion messages found. Start at least one round first.' },
+        { error: '没有找到讨论消息。请先至少完成一轮讨论。' },
         { status: 400 }
       );
     }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
 
         return {
-          agentName: agentMap.get(msg.agentId) || 'Unknown',
+          agentName: agentMap.get(msg.agentId) || '未知智能体',
           content: msg.content,
           roundNumber: msg.round.roundNumber,
           citations: citations,
@@ -88,8 +88,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         } catch (error) {
           console.error('Error generating blog post:', error);
           sendEvent('error', {
-            error: 'Blog post generation failed',
-            details: error instanceof Error ? error.message : 'Unknown error'
+            error: '博客文章生成失败',
+            details: error instanceof Error ? error.message : '未知错误'
           });
           controller.close();
         }
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     console.error('Error in blog post API:', error);
     return NextResponse.json(
       {
-        error: 'Failed to generate blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: '生成博客文章失败',
+        details: error instanceof Error ? error.message : '未知错误'
       },
       { status: 500 }
     );

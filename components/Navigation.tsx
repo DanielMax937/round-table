@@ -17,7 +17,7 @@ export default function Navigation() {
                     {/* Logo/Home */}
                     <Link href="/" className="flex items-center">
                         <span className="text-xl font-bold text-gray-900 dark:text-white">
-                            Round Table AI
+                            圆桌 AI
                         </span>
                     </Link>
 
@@ -30,7 +30,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            New Discussion
+                            新建讨论
                         </Link>
                         <Link
                             href="/discussions"
@@ -39,7 +39,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            Discussions
+                            讨论记录
                         </Link>
                         <Link
                             href="/votes"
@@ -48,7 +48,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            Votes
+                            投票
                         </Link>
                         <Link
                             href="/movies"
@@ -57,7 +57,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            Movies
+                            电影项目
                         </Link>
                         <Link
                             href="/docs"
@@ -66,7 +66,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            API Docs
+                            API 文档
                         </Link>
                         <Link
                             href="/personas"
@@ -75,7 +75,7 @@ export default function Navigation() {
                                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                                 }`}
                         >
-                            Personas
+                            智能体人格
                         </Link>
                     </div>
                 </div>

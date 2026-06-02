@@ -40,7 +40,7 @@ export default function RoundTableForm() {
   const fetchPersonas = async () => {
     try {
       const response = await fetch('/api/personas');
-      if (!response.ok) throw new Error('Failed to fetch personas');
+      if (!response.ok) throw new Error('加载智能体人格失败');
       const data = await response.json();
       setAvailablePersonas(data.personas);
 
@@ -50,7 +50,7 @@ export default function RoundTableForm() {
       }
     } catch (err) {
       console.error('Error fetching personas:', err);
-      setError('Failed to load personas. Please refresh the page.');
+      setError('加载智能体人格失败，请刷新页面重试。');
     } finally {
       setIsLoadingPersonas(false);
     }
@@ -84,17 +84,17 @@ export default function RoundTableForm() {
 
     // Validation
     if (!topic.trim()) {
-      setError('Please enter a topic');
+      setError('请输入讨论主题');
       return;
     }
 
     if (agentCount < 2 || agentCount > 6) {
-      setError('Agent count must be between 2 and 6');
+      setError('智能体数量必须在 2 到 6 之间');
       return;
     }
 
     if (selectedPersonaIds.length !== agentCount) {
-      setError(`Please select ${agentCount} agents for the discussion`);
+      setError(`请选择 ${agentCount} 个参与讨论的智能体`);
       return;
     }
 
@@ -117,13 +117,13 @@ export default function RoundTableForm() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create round table');
+        throw new Error(data.error || '创建圆桌讨论失败');
       }
 
       const data = await response.json();
       router.push(`/roundtable/${data.roundTable.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +132,7 @@ export default function RoundTableForm() {
   if (isLoadingPersonas) {
     return (
       <div className="max-w-2xl mx-auto flex items-center justify-center py-12">
-        <div className="text-lg">Loading personas...</div>
+        <div className="text-lg">正在加载智能体人格...</div>
       </div>
     );
   }
@@ -141,12 +141,12 @@ export default function RoundTableForm() {
     <div className="max-w-2xl mx-auto">
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Start a Round Table Discussion</h2>
+          <h2 className="text-2xl font-bold">发起圆桌讨论</h2>
           <button
             onClick={() => router.push('/personas')}
             className="text-sm px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg"
           >
-            Manage Personas
+            管理人格
           </button>
         </div>
 
@@ -159,13 +159,13 @@ export default function RoundTableForm() {
         {/* Topic Input */}
         <div className="mb-6">
           <label htmlFor="topic" className="block text-sm font-medium mb-2">
-            Discussion Topic
+            讨论主题
           </label>
           <textarea
             id="topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="What topic would you like to discuss? (e.g., 'Should AI have rights?', 'The future of remote work')"
+            placeholder="你想讨论什么？例如：AI 是否应该拥有权利？远程办公的未来是什么？"
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
             rows={4}
             disabled={isSubmitting}
@@ -175,7 +175,7 @@ export default function RoundTableForm() {
         {/* Agent Count Selector */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">
-            Number of Agents
+            智能体数量
           </label>
           <div className="flex gap-2">
             {[2, 3, 4, 5, 6].map((count) => (
@@ -198,19 +198,19 @@ export default function RoundTableForm() {
         {/* Agent Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">
-            Select Agents ({selectedPersonaIds.length}/{agentCount})
+            选择智能体（{selectedPersonaIds.length}/{agentCount}）
           </label>
           <div className="space-y-3">
             {Array.from({ length: agentCount }).map((_, index) => (
               <div key={index} className="flex items-center gap-3">
-                <span className="text-sm font-medium w-20">Agent {index + 1}:</span>
+                <span className="text-sm font-medium w-20">智能体 {index + 1}：</span>
                 <select
                   value={selectedPersonaIds[index] || ''}
                   onChange={(e) => handlePersonaSelect(index, e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   disabled={isSubmitting}
                 >
-                  <option value="">Select a persona...</option>
+                  <option value="">选择一个人格...</option>
                   {availablePersonas.map((persona) => (
                     <option key={persona.id} value={persona.id}>
                       {persona.name} - {persona.description}
@@ -222,7 +222,7 @@ export default function RoundTableForm() {
           </div>
           {availablePersonas.length === 0 && (
             <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-              No personas available. Please create some in the Manage Personas page.
+              暂无可用人格。请先到“管理人格”页面创建。
             </p>
           )}
         </div>
@@ -230,7 +230,7 @@ export default function RoundTableForm() {
         {/* Language Selector */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">
-            Discussion Language
+            讨论语言
           </label>
           <div className="flex gap-4">
             <label className="flex items-center cursor-pointer">
@@ -242,7 +242,7 @@ export default function RoundTableForm() {
                 className="mr-2"
                 disabled={isSubmitting}
               />
-              <span className="text-sm">中文 (Chinese)</span>
+              <span className="text-sm">中文</span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -253,18 +253,18 @@ export default function RoundTableForm() {
                 className="mr-2"
                 disabled={isSubmitting}
               />
-              <span className="text-sm">English</span>
+              <span className="text-sm">英文</span>
             </label>
           </div>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Agents will respond in the selected language
+            智能体会使用所选语言回复
           </p>
         </div>
 
         {/* Max Rounds Input */}
         <div className="mb-6">
           <label htmlFor="maxRounds" className="block text-sm font-medium mb-2">
-            Maximum Rounds
+            最大轮数
           </label>
           <input
             id="maxRounds"
@@ -277,7 +277,7 @@ export default function RoundTableForm() {
             disabled={isSubmitting}
           />
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            The discussion will run for {maxRounds} round{maxRounds > 1 ? 's' : ''} (default: 5)
+            本次讨论最多进行 {maxRounds} 轮
           </p>
         </div>
 
@@ -290,20 +290,20 @@ export default function RoundTableForm() {
             : 'bg-blue-500 hover:bg-blue-600'
             }`}
         >
-          {isSubmitting ? 'Creating...' : 'Start Discussion'}
+          {isSubmitting ? '创建中...' : '开始讨论'}
         </button>
       </div>
 
       {/* Info Section */}
       <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
         <h3 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
-          How it works
+          说明
         </h3>
         <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
-          <li>• Agents will discuss your topic sequentially in rounds</li>
-          <li>• Each agent has a unique perspective and personality</li>
-          <li>• Agents can search the web to support their arguments</li>
-          <li>• Click "Continue to Round X" to start each new round</li>
+          <li>• 智能体会按轮次依次讨论你的主题</li>
+          <li>• 每个智能体都有独立视角和人格设定</li>
+          <li>• 智能体可以搜索网页来支撑观点</li>
+          <li>• 点击“开始第 X 轮”继续推进讨论</li>
         </ul>
       </div>
     </div>

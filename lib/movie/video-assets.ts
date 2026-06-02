@@ -4,6 +4,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { prisma } from '@/lib/prisma';
 import { chatCompletion } from '@/lib/llm/client';
+import { getVisualAssetImagePaths } from '@/lib/movie/asset-files';
 
 const DOUBAO_TASK_ROOT =
   process.env.DOUBAO_VIDEO_TASK_ROOT || '/Users/daniel/Desktop/gy/website-scraper';
@@ -142,14 +143,34 @@ export async function createVideoGenerationJobs(movieId: string, request: VideoG
     });
     jobs.push(job);
 
-    if (request.run) {
-      executeVideoGenerationJob(job.id, request.profileIds || '1').catch((error) => {
-        console.error(`[VideoGenerationJob] ${job.id} failed`, error);
-      });
-    }
+  }
+
+  if (request.run) {
+    executeVideoGenerationJobsSequentially(
+      jobs.map((job) => job.id),
+      request.profileIds || '1'
+    ).catch((error) => {
+      console.error('[VideoGenerationJobs] sequential run failed', error);
+    });
   }
 
   return jobs;
+}
+
+export async function executeVideoGenerationJobsSequentially(
+  jobIds: string[],
+  profileIds = '1'
+): Promise<void> {
+  for (const jobId of jobIds) {
+    const job = await prisma.videoGenerationJob.findUnique({ where: { id: jobId } });
+    if (!job || job.status === 'completed') continue;
+
+    try {
+      await executeVideoGenerationJob(jobId, profileIds);
+    } catch (error) {
+      console.error(`[VideoGenerationJob] ${jobId} failed`, error);
+    }
+  }
 }
 
 export async function executeVideoGenerationJob(jobId: string, profileIds = '1'): Promise<void> {
@@ -220,7 +241,11 @@ async function buildVideoSpecs(movie: MovieForVideo, request: VideoGenerationReq
 
   for (const visual of visualTargets) {
     const scene = visual.sceneId ? movie.scenes.find((item) => item.id === visual.sceneId) || visual.scene : visual.scene;
-    const sourceImagePaths = resolveImagePaths(request.sourceImagePaths || [], visual.result || '');
+    const sourceImagePaths = mergeImagePaths(
+      request.sourceImagePaths || [],
+      getVisualAssetImagePaths(visual),
+      resolveImagePaths([], visual.result || '')
+    );
     specs.push({
       visualAssetJobId: visual.id,
       sceneId: visual.sceneId || undefined,
@@ -398,6 +423,14 @@ function resolveImagePaths(explicitPaths: string[], resultText: string): string[
     if (!paths.includes(item)) paths.push(item);
   }
   return paths.filter((item) => fs.existsSync(item) && fs.statSync(item).isFile());
+}
+
+function mergeImagePaths(...groups: string[][]): string[] {
+  const paths = new Set<string>();
+  for (const group of groups) {
+    for (const item of group) paths.add(item);
+  }
+  return Array.from(paths).filter((item) => fs.existsSync(item) && fs.statSync(item).isFile());
 }
 
 function buildDoubaoCommand(inputJsonPath: string, outputDir: string, profileIds: string): string {

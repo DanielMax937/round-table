@@ -6,6 +6,7 @@ export interface NovelReviewInput {
   chapterNumber: number;
   chapterTitle: string;
   chapterContent: string;
+  developmentContext?: string;
   characters: Array<{
     name: string;
     personalityTraits?: string;
@@ -61,6 +62,8 @@ ${input.movieTitle}
 # 章节
 第${input.chapterNumber}章 ${input.chapterTitle}
 
+${input.developmentContext?.trim() ? `# 开发约束 / 故事圣经\n${input.developmentContext.trim()}\n` : ''}
+
 # 角色
 ${characterText}
 
@@ -80,6 +83,7 @@ ${input.chapterContent}
    - 是否有重复的场景描写？（如同一事件被多次详细描述）
    - 是否有重复的意象？（如"咖啡凉了"、"高跟鞋敲击"在多处出现）
 8. **角色名一致性**：同一角色是否在全章使用同一个名字？是否有英文名混入？
+9. **开发约束落实**：是否保留不可改事实、角色行为规则、物件/空间母题和本章埋设/回收？是否没有把这些设计直白解释给读者？
 
 # 输出 JSON 格式
 {
@@ -175,6 +179,8 @@ ${input.movieTitle}
 
 # 章节
 第${input.chapterNumber}章 ${input.chapterTitle}
+
+${input.developmentContext?.trim() ? `# 开发约束 / 故事圣经\n${input.developmentContext.trim()}\n` : ''}
 
 # 角色
 ${characterText}

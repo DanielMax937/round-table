@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error fetching production pipeline runs:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch production pipeline runs', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '获取产制流水线记录失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error running production pipeline:', error);
     return NextResponse.json(
-      { error: 'Failed to run production pipeline', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '运行产制流水线失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

@@ -11,13 +11,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
     return NextResponse.json({ theme: movie.theme ?? '' });
   } catch (error) {
     console.error('Error fetching theme:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch theme' },
+      { error: '获取主题失败' },
       { status: 500 }
     );
   }
@@ -29,11 +29,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
     const { theme } = await request.json();
     if (typeof theme !== 'string') {
-      return NextResponse.json({ error: 'theme must be a string' }, { status: 400 });
+      return NextResponse.json({ error: '主题必须是字符串' }, { status: 400 });
     }
     await updateMovie(movieId, {
       theme: theme.trim() || undefined,
@@ -44,7 +44,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error updating theme:', error);
     return NextResponse.json(
-      { error: 'Failed to update theme' },
+      { error: '更新主题失败' },
       { status: 500 }
     );
   }

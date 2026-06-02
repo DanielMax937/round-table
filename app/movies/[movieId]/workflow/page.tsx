@@ -25,7 +25,7 @@ export default async function WorkflowPage({ params }: PageProps) {
             href="/movies"
             className="text-blue-500 hover:text-blue-600 text-sm font-medium"
           >
-            &larr; Back to Movies
+            &larr; 返回电影项目
           </Link>
           <Link
             href={`/movies/${movieId}`}

@@ -11,23 +11,23 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!topic || typeof topic !== 'string') {
-      return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
+      return NextResponse.json({ error: '主题为必填项' }, { status: 400 });
     }
 
     if (!agentCount || typeof agentCount !== 'number' || agentCount < 2 || agentCount > 6) {
       return NextResponse.json(
-        { error: 'Agent count must be between 2 and 6' },
+        { error: '智能体数量必须在 2 到 6 之间' },
         { status: 400 }
       );
     }
 
     // Handle both old customPersonas and new selectedPersonaIds
     if (customPersonas && !Array.isArray(customPersonas)) {
-      return NextResponse.json({ error: 'Custom personas must be an array' }, { status: 400 });
+      return NextResponse.json({ error: '自定义人格必须是数组' }, { status: 400 });
     }
 
     if (selectedPersonaIds && !Array.isArray(selectedPersonaIds)) {
-      return NextResponse.json({ error: 'Selected persona IDs must be an array' }, { status: 400 });
+      return NextResponse.json({ error: '已选人格 ID 必须是数组' }, { status: 400 });
     }
 
     // Validate custom personas if provided
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (maxRounds !== undefined) {
       if (typeof maxRounds !== 'number' || maxRounds < 1 || maxRounds > 50) {
         return NextResponse.json(
-          { error: 'maxRounds must be a number between 1 and 50' },
+          { error: '最大轮数必须是 1 到 50 之间的数字' },
           { status: 400 }
         );
       }
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating round table:', error);
     return NextResponse.json(
-      { error: 'Failed to create round table', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '创建圆桌讨论失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     // Validate status if provided
     if (status && !['active', 'paused', 'archived'].includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      return NextResponse.json({ error: '状态无效' }, { status: 400 });
     }
 
     // Get round tables
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching round tables:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch round tables', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: '获取圆桌讨论列表失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }

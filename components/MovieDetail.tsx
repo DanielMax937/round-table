@@ -83,26 +83,26 @@ export default function MovieDetail({ movieId, title, description, characters, s
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to save character');
+        throw new Error(data.error || '保存角色失败');
       }
 
       resetCharForm();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setCharSubmitting(false);
     }
   };
 
   const handleDeleteCharacter = async (charId: string) => {
-    if (!confirm('Delete this character?')) return;
+    if (!confirm('确定删除这个角色吗？')) return;
 
     try {
       await fetch(`/api/movies/${movieId}/characters/${charId}`, { method: 'DELETE' });
       router.refresh();
     } catch (err) {
-      setError('Failed to delete character');
+      setError('删除角色失败');
     }
   };
 
@@ -141,13 +141,13 @@ export default function MovieDetail({ movieId, title, description, characters, s
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create scene');
+        throw new Error(data.error || '创建场景失败');
       }
 
       const { scene } = await response.json();
       router.push(`/movies/${movieId}/scenes/${scene.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : '操作失败，请稍后重试');
     } finally {
       setSceneSubmitting(false);
     }
@@ -157,8 +157,19 @@ export default function MovieDetail({ movieId, title, description, characters, s
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Movie Header */}
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{title}</h1>
-        {description && <p className="text-gray-600 dark:text-gray-400">{description}</p>}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{title}</h1>
+            {description && <p className="text-gray-600 dark:text-gray-400">{description}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push(`/movies/${movieId}/workflow`)}
+            className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm font-medium transition-colors"
+          >
+            AI 工作流
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -170,12 +181,12 @@ export default function MovieDetail({ movieId, title, description, characters, s
       {/* Characters Section */}
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Characters ({characters.length})</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">角色（{characters.length}）</h2>
           <button
             onClick={() => { resetCharForm(); setShowCharForm(!showCharForm); }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
           >
-            {showCharForm ? 'Cancel' : '+ Add Character'}
+            {showCharForm ? '取消' : '+ 添加角色'}
           </button>
         </div>
 
@@ -185,14 +196,14 @@ export default function MovieDetail({ movieId, title, description, characters, s
               type="text"
               value={charName}
               onChange={e => setCharName(e.target.value)}
-              placeholder="Character name"
+              placeholder="角色姓名"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               required
             />
             <textarea
               value={charBackstory}
               onChange={e => setCharBackstory(e.target.value)}
-              placeholder="Backstory - who is this character? What's their history?"
+              placeholder="背景故事：这个角色是谁？经历过什么？"
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               required
@@ -200,7 +211,7 @@ export default function MovieDetail({ movieId, title, description, characters, s
             <textarea
               value={charTraits}
               onChange={e => setCharTraits(e.target.value)}
-              placeholder="Personality traits - how do they talk? What's their attitude?"
+              placeholder="性格特征：说话方式、态度、行为习惯"
               rows={2}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               required
@@ -210,13 +221,13 @@ export default function MovieDetail({ movieId, title, description, characters, s
               disabled={charSubmitting}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 text-sm font-medium transition-colors"
             >
-              {charSubmitting ? 'Saving...' : editingChar ? 'Update Character' : 'Add Character'}
+              {charSubmitting ? '保存中...' : editingChar ? '更新角色' : '添加角色'}
             </button>
           </form>
         )}
 
         {characters.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-sm">No characters yet. Add some to get started.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">暂无角色。先添加角色再创建场景。</p>
         ) : (
           <div className="grid gap-3">
             {characters.map(char => (
@@ -232,13 +243,13 @@ export default function MovieDetail({ movieId, title, description, characters, s
                       onClick={() => startEditCharacter(char)}
                       className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      Edit
+                      编辑
                     </button>
                     <button
                       onClick={() => handleDeleteCharacter(char.id)}
                       className="text-sm text-red-600 dark:text-red-400 hover:underline"
                     >
-                      Delete
+                      删除
                     </button>
                   </div>
                 </div>
@@ -251,20 +262,20 @@ export default function MovieDetail({ movieId, title, description, characters, s
       {/* Scenes Section */}
       <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Scenes ({scenes.length})</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">场景（{scenes.length}）</h2>
           {characters.length >= 2 && (
             <button
               onClick={() => setShowSceneForm(!showSceneForm)}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
             >
-              {showSceneForm ? 'Cancel' : '+ New Scene'}
+              {showSceneForm ? '取消' : '+ 新建场景'}
             </button>
           )}
         </div>
 
         {characters.length < 2 && (
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-            Add at least 2 characters before creating scenes.
+            至少添加 2 个角色后才能创建场景。
           </p>
         )}
 
@@ -274,14 +285,14 @@ export default function MovieDetail({ movieId, title, description, characters, s
               type="text"
               value={sceneHeading}
               onChange={e => setSceneHeading(e.target.value)}
-              placeholder="Scene heading (e.g. INT. COFFEE SHOP - NIGHT)"
+              placeholder="场景标题，例如：INT. 咖啡馆 - 夜"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               required
             />
             <textarea
               value={sceneDesc}
               onChange={e => setSceneDesc(e.target.value)}
-              placeholder="Scene description - what's happening? What's the mood?"
+              placeholder="场景描述：发生了什么？情绪和氛围是什么？"
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               required
@@ -289,7 +300,7 @@ export default function MovieDetail({ movieId, title, description, characters, s
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Characters ({selectedChars.length} selected, min 2)
+                选择角色（已选 {selectedChars.length} 个，至少 2 个）
               </label>
               <div className="flex flex-wrap gap-2">
                 {characters.map(char => (
@@ -311,7 +322,7 @@ export default function MovieDetail({ movieId, title, description, characters, s
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Max Dialogue Rounds
+                最大对话轮数
               </label>
               <input
                 type="number"
@@ -328,13 +339,13 @@ export default function MovieDetail({ movieId, title, description, characters, s
               disabled={sceneSubmitting || selectedChars.length < 2}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors"
             >
-              {sceneSubmitting ? 'Creating...' : 'Create Scene'}
+              {sceneSubmitting ? '创建中...' : '创建场景'}
             </button>
           </form>
         )}
 
         {scenes.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-sm">No scenes yet.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">暂无场景。</p>
         ) : (
           <div className="grid gap-3">
             {scenes.map(scene => (
@@ -346,7 +357,7 @@ export default function MovieDetail({ movieId, title, description, characters, s
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 dark:text-white">
-                      Scene {scene.sceneNumber}: {scene.heading}
+                      场景 {scene.sceneNumber}：{scene.heading}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                       {scene.description}
@@ -354,17 +365,17 @@ export default function MovieDetail({ movieId, title, description, characters, s
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
                       <span>{scene.sceneCharacters.map(sc => sc.character.name).join(', ')}</span>
                       <span>-</span>
-                      <span>{scene.roundTable._count.rounds} rounds</span>
+                      <span>{scene.roundTable._count.rounds} 轮</span>
                     </div>
                   </div>
                   <div className="ml-4">
                     {scene.finalizedScript ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        Finalized
+                        已定稿
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                        In Progress
+                        进行中
                       </span>
                     )}
                   </div>

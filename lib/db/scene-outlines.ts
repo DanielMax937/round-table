@@ -2,7 +2,17 @@ import { prisma } from '../prisma';
 
 export async function createSceneOutlines(
   movieId: string,
-  items: Array<{ title: string; contentSummary: string; emotionalGoal: string; characterIds: string[] }>
+  items: Array<{
+    title: string;
+    contentSummary: string;
+    emotionalGoal: string;
+    characterIds: string[];
+    act?: string;
+    arcName?: string;
+    arcGoal?: string;
+    setupPayoff?: string;
+    requiredMotif?: string;
+  }>
 ) {
   await prisma.sceneOutline.deleteMany({ where: { movieId } });
   const created = await prisma.$transaction(
@@ -14,6 +24,11 @@ export async function createSceneOutlines(
           title: item.title,
           contentSummary: item.contentSummary,
           emotionalGoal: item.emotionalGoal,
+          act: item.act?.trim() || null,
+          arcName: item.arcName?.trim() || null,
+          arcGoal: item.arcGoal?.trim() || null,
+          setupPayoff: item.setupPayoff?.trim() || null,
+          requiredMotif: item.requiredMotif?.trim() || null,
           characterIdsJson: JSON.stringify(item.characterIds),
         },
       })
@@ -47,6 +62,11 @@ export async function updateSceneOutline(
     title?: string;
     contentSummary?: string;
     emotionalGoal?: string;
+    act?: string | null;
+    arcName?: string | null;
+    arcGoal?: string | null;
+    setupPayoff?: string | null;
+    requiredMotif?: string | null;
     characterIdsJson?: string;
     sortOrder?: number;
   }
@@ -57,6 +77,11 @@ export async function updateSceneOutline(
       ...(data.title != null && { title: data.title }),
       ...(data.contentSummary != null && { contentSummary: data.contentSummary }),
       ...(data.emotionalGoal != null && { emotionalGoal: data.emotionalGoal }),
+      ...(data.act !== undefined && { act: data.act?.trim() || null }),
+      ...(data.arcName !== undefined && { arcName: data.arcName?.trim() || null }),
+      ...(data.arcGoal !== undefined && { arcGoal: data.arcGoal?.trim() || null }),
+      ...(data.setupPayoff !== undefined && { setupPayoff: data.setupPayoff?.trim() || null }),
+      ...(data.requiredMotif !== undefined && { requiredMotif: data.requiredMotif?.trim() || null }),
       ...(data.characterIdsJson != null && { characterIdsJson: data.characterIdsJson }),
       ...(data.sortOrder != null && { sortOrder: data.sortOrder }),
     },

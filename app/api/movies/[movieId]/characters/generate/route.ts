@@ -3,6 +3,7 @@ import { getMovie } from '@/lib/db/movies';
 import { getCharactersByMovie } from '@/lib/db/characters';
 import { createCharacter } from '@/lib/db/characters';
 import { generateCharactersFromStory } from '@/lib/movie/character-generator';
+import { parseDevelopmentReport, parseStoryBible } from '@/lib/movie/development';
 import type { StoryProposal } from '@/lib/movie/types';
 
 interface RouteParams {
@@ -15,24 +16,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { movieId } = await params;
     const movie = await getMovie(movieId);
     if (!movie) {
-      return NextResponse.json({ error: 'Movie not found' }, { status: 404 });
+      return NextResponse.json({ error: '电影项目不存在' }, { status: 404 });
     }
 
     const proposalJson = movie.storyProposalJson;
     if (!proposalJson) {
       return NextResponse.json(
-        { error: 'No story proposal confirmed. Confirm a story first.' },
+        { error: '尚未确认故事提案。请先确认故事。' },
+        { status: 400 }
+      );
+    }
+    if (!movie.developmentReportJson && !movie.storyBibleJson) {
+      return NextResponse.json(
+        { error: '请先生成开发读本 / 故事圣经，再生成角色。' },
         { status: 400 }
       );
     }
 
     const proposal = JSON.parse(proposalJson) as StoryProposal;
-    const profiles = await generateCharactersFromStory(proposal);
+    const profiles = await generateCharactersFromStory(proposal, {
+      report: parseDevelopmentReport(movie.developmentReportJson),
+      bible: parseStoryBible(movie.storyBibleJson),
+    });
 
     const existing = await getCharactersByMovie(movieId);
     if (existing.length > 0) {
       return NextResponse.json(
-        { error: 'Characters already exist. Delete them first to regenerate.' },
+        { error: '角色已存在。请先删除角色后再重新生成。' },
         { status: 400 }
       );
     }
@@ -63,7 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error generating characters:', error);
     return NextResponse.json(
-      { error: 'Failed to generate characters', details: error instanceof Error ? error.message : 'Unknown' },
+      { error: '生成角色失败', details: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     );
   }
