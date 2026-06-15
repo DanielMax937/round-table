@@ -30,6 +30,12 @@ export default async function MoviesPage() {
               + 系统自动创作
             </Link>
             <Link
+              href="/buzzy-agent"
+              className="px-4 py-2 bg-yellow-500 text-gray-950 rounded-lg hover:bg-yellow-400"
+            >
+              + Buzzy Agent
+            </Link>
+            <Link
               href="/movies/new"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
@@ -81,6 +87,12 @@ export default async function MoviesPage() {
                       className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 text-center"
                     >
                       AI 产制
+                    </Link>
+                    <Link
+                      href={`/buzzy-agent?movieId=${movie.id}`}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-yellow-500 text-gray-950 hover:bg-yellow-400 text-center"
+                    >
+                      Agent Canvas
                     </Link>
                     <MovieDeleteButton movieId={movie.id} movieTitle={movie.title} />
                   </div>

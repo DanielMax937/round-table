@@ -1,0 +1,3 @@
+# Mermaid Validation
+
+status: skipped

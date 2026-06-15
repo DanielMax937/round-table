@@ -1,0 +1,27 @@
+{
+  "command": "run",
+  "repo": "/Users/daniel/Desktop/git/round-table",
+  "base": "origin/master",
+  "diff_scope": "working-tree",
+  "feature": "buzzy-agent-flow-full",
+  "reviewers": [
+    "claude",
+    "codex",
+    "agent"
+  ],
+  "default_reviewers": [
+    "claude",
+    "codex",
+    "agent"
+  ],
+  "config_paths": [],
+  "passes": 1,
+  "auto_scope": false,
+  "bug_policy_source": "default",
+  "dry_run": false,
+  "fix_critical_high": false,
+  "approved_findings": null,
+  "approve_fix_plan": false,
+  "approved_fix_plan": null,
+  "test_command": null
+}
