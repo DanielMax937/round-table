@@ -15,9 +15,11 @@
     "test:moe-vote": "tsx scripts/test-moe-vote.ts",
     "test:ai-movie": "vitest run app/api/movies/__tests__/ai-movie-api.test.ts",
     "test:memos": "vitest run lib/memos/__tests__/client.test.ts lib/agents/__tests__/memos-integration.test.ts",
+    "seedance:validate": "tsx scripts/validate-seedance-skill-os.ts",
     "seed:rebirth-drama": "tsx scripts/seed-rebirth-drama.ts",
     "workflow": "tsx scripts/script-workflow.ts",
-    "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts"
+    "moe-vote:cleanup": "tsx scripts/cleanup-moe-jobs.ts",
+    "higgsfield:download": "tsx scripts/download-higgsfield-project.ts"
   },
   "dependencies": {
     "@next/swc-darwin-arm64": "^16.1.1",

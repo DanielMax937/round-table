@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { prisma } from '@/lib/prisma';
 import { chatCompletion } from '@/lib/llm/client';
 import { getVisualAssetImagePaths } from '@/lib/movie/asset-files';
+import { buildSeedancePromptMessages } from '@/lib/movie/seedance-prompt-compiler';
 
 const DOUBAO_TASK_ROOT =
   process.env.DOUBAO_VIDEO_TASK_ROOT || '/Users/daniel/Desktop/gy/website-scraper';
@@ -259,6 +260,8 @@ async function buildVideoSpecs(movie: MovieForVideo, request: VideoGenerationReq
         scene,
         character: visual.character || undefined,
         durationSeconds: request.durationSeconds,
+        ratio: request.ratio,
+        sourceImagePaths,
         notes: request.notes,
       }),
     });
@@ -276,6 +279,8 @@ async function buildVideoSpecs(movie: MovieForVideo, request: VideoGenerationReq
         visualResult: '',
         scene,
         durationSeconds: request.durationSeconds,
+        ratio: request.ratio,
+        sourceImagePaths: request.sourceImagePaths || [],
         notes: request.notes,
       }),
     });
@@ -294,6 +299,8 @@ async function generateVideoPromptWithLLM(
     scene?: MovieForVideo['scenes'][number] | MovieForVideo['visualAssetJobs'][number]['scene'] | null;
     character?: MovieForVideo['visualAssetJobs'][number]['character'];
     durationSeconds?: number;
+    ratio?: string;
+    sourceImagePaths?: string[];
     notes?: string;
   }
 ): Promise<string> {
@@ -311,91 +318,21 @@ async function generateVideoPromptWithLLM(
         scene.finalizedScript ? `Approved screenplay excerpt: ${truncate(scene.finalizedScript, 1200)}` : '',
       ].filter(Boolean).join('\n')
     : '';
-  const visualContext = [
-    context.visualPrompt ? `Reference image design prompt: ${truncate(context.visualPrompt, 1200)}` : '',
-    context.visualResult ? `Generated image notes / result: ${truncate(context.visualResult, 900)}` : '',
-  ].filter(Boolean).join('\n');
-
   const result = await chatCompletion(
-    [
-      {
-        role: 'system',
-        content: [
-          '你是即梦 Seedance 2.0 的专业视频提示词工程师。',
-          '你的任务是为 Seedance 2.0 多模态AI视频生成模型撰写精准、高效的提示词。',
-          '',
-          '## 核心规则',
-          '1. 使用 @ 引用语法指定每个素材的用途：@图片1 作为首帧、@图片1 的人物作为主体、场景参考 @图片2 等。',
-          '2. 每个 @ 引用必须明确说明用途，不能只写"参考 @图片1"。',
-          '3. 使用分时段描述（0-3秒、3-6秒、6-10秒 等）精确控制画面。',
-          '4. 使用专业运镜术语：推镜头、拉镜头、环绕镜头、希区柯克变焦、一镜到底、跟随镜头等。',
-          '5. 必须包含音频/音效设计指导。',
-          '6. 输出中文提示词，直接生成最终提示词，不要解释。',
-          '',
-          '## Seedance 2.0 约束',
-          '- 生成时长：4-15秒',
-          '- 输出自带音效/配乐',
-          '- 不支持写实真人脸部素材',
-          '- 总文件数 ≤ 12',
-          '',
-          '## 提示词结构公式',
-          '[主体/人物设定] + [场景/环境] + [动作/运动描述] + [运镜语言] + [分时段描述] + [转场/特效] + [音频/音效设计] + [风格/氛围]',
-          '',
-          '## 运镜术语',
-          '基础：推镜头、拉镜头、左摇/右摇、上摇/下摇、跟随镜头、环绕镜头、一镜到底',
-          '高级：希区柯克变焦、鱼眼镜头、低角度仰拍、俯拍/鸟瞰、第一人称主观视角、快速摇镜、机械臂跟随',
-          '景别：极致特写、面部特写、中近景、中景、全景、远景/建立镜头',
-        ].join('\n'),
-      },
-      {
-        role: 'user',
-        content: [
-          `电影：${movie.title}`,
-          story ? `故事背景（仅用于连续性参考）：${story}` : '',
-          `视觉素材：${context.visualTitle}（${context.visualType}）`,
-          `角色：${characters || '故事角色'}`,
-          `目标时长：${durationSec}秒`,
-          `画面比例：16:9`,
-          sceneText,
-          visualContext,
-          context.notes ? `用户备注：${context.notes}` : '',
-          '',
-          '## 提示词要求',
-          '',
-          '### @ 引用语法',
-          '- 如果有参考图片，使用 @图片1、@图片2 等引用，每个引用必须说明用途',
-          '- 示例：@图片1 作为首帧，参考 @图片1 的人物形象，场景参考 @图片2',
-          '- 多引用组合：@图片1 的人物作为主体，参考 @视频1 的运镜和动作编排',
-          '',
-          '### 分时段描述（必须）',
-          `按以下时间段描述画面内容（总时长${durationSec}秒）：`,
-          durationSec <= 8
-            ? `0-${Math.ceil(durationSec / 2)}秒：[开场]\n${Math.ceil(durationSec / 2)}-${durationSec}秒：[发展/高潮]`
-            : `0-3秒：[开场画面描述、运镜、动作]\n3-${Math.min(6, durationSec - 2)}秒：[中段发展]\n${Math.min(6, durationSec - 2)}-${durationSec}秒：[高潮或关键动作]`,
-          '',
-          '### 运镜语言',
-          '- 使用专业运镜术语，指定景别和镜头运动',
-          '- 优先使用一镜到底或跟随镜头，避免频繁切换',
-          '- 示例：镜头从远景缓慢推进到中景特写，环绕镜头展示环境',
-          '',
-          '### 音频设计（必须包含）',
-          '- 指定背景音乐风格和情绪',
-          '- 指定关键音效（脚步声、环境音、物体交互声等）',
-          '- 示例：背景音乐紧张悬疑，伴随心跳声和金属碰撞音效',
-          '',
-          '### 风格修饰词',
-          '- 添加画面风格：电影级质感、胶片颗粒、浅景深、2.35:1宽银幕等',
-          '- 添加氛围：紧张悬疑、温暖治愈、史诗恢宏等',
-          '',
-          '### 负面约束',
-          '- 不要出现：变形面部、多余肢体、融合手部、浮动道具、随机文字',
-          '- 不要使用：海报式打光、通用励志氛围、突然场景切换',
-          '- 不要使用蒙太奇或多镜头快速切换，除非明确要求',
-          '',
-          '直接输出最终的 Seedance 2.0 视频提示词（中文），不要加任何前缀或解释。',
-        ].filter(Boolean).join('\n\n'),
-      },
-    ],
+    buildSeedancePromptMessages({
+      movieTitle: movie.title,
+      storyContext: story,
+      visualTitle: context.visualTitle,
+      visualType: context.visualType,
+      characters: characters || '故事角色',
+      requestedDurationSeconds: durationSec,
+      ratio: context.ratio,
+      sceneText,
+      visualPrompt: context.visualPrompt,
+      visualResult: context.visualResult,
+      notes: context.notes,
+      sourceImagePaths: context.sourceImagePaths || [],
+    }),
     { temperature: 0.3, maxTokens: 1600 }
   );
 
