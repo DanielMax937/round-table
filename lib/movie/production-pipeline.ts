@@ -10,6 +10,10 @@ import {
   executeVideoGenerationJob,
 } from '@/lib/movie/video-assets';
 import {
+  normalizeVideoPromptMode,
+  type VideoPromptMode,
+} from '@/lib/movie/video-prompt-mode-contract';
+import {
   createQualityReviewJob,
   executeQualityReviewJob,
   type QualityTargetType,
@@ -24,6 +28,7 @@ export interface ProductionPipelineRequest {
   runVisual?: boolean;
   runVideo?: boolean;
   runQuality?: boolean;
+  videoPromptMode?: VideoPromptMode;
   profileIds?: string;
   notes?: string;
 }
@@ -72,6 +77,7 @@ export function normalizeProductionPipelineRequest(input: Partial<ProductionPipe
     runVisual: Boolean(input.runVisual),
     runVideo: Boolean(input.runVideo),
     runQuality: true,
+    videoPromptMode: normalizeVideoPromptMode(input.videoPromptMode),
     profileIds: typeof input.profileIds === 'string' && input.profileIds.trim() ? input.profileIds.trim() : '1',
     notes: typeof input.notes === 'string' ? input.notes.trim() : '',
   };
@@ -201,6 +207,7 @@ async function runScenePipeline(
   if (keyframe) {
     const videoJobs = await createVideoGenerationJobs(movieId, {
       visualAssetJobIds: [keyframe.id],
+      promptMode: request.videoPromptMode,
       ratio: '16:9',
       durationSeconds,
       profileIds: request.profileIds || '1',

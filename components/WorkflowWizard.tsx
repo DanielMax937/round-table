@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import VideoPromptModeSelector from '@/components/VideoPromptModeSelector';
+import {
+  getVideoPromptModeLabel,
+  type VideoPromptMode,
+} from '@/lib/movie/video-prompt-mode-contract';
 
 interface Movie {
   id: string;
@@ -77,6 +82,7 @@ interface Movie {
     id: string;
     status: string;
     title: string;
+    promptMode?: string;
     ratio: string;
     durationSeconds?: number | null;
     sourceImagePathsJson: string;
@@ -191,6 +197,7 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
   const [videoVisualAssetIds, setVideoVisualAssetIds] = useState<string[]>([]);
   const [videoSceneIds, setVideoSceneIds] = useState<string[]>([]);
   const [videoSourceImagePaths, setVideoSourceImagePaths] = useState('');
+  const [videoPromptMode, setVideoPromptMode] = useState<VideoPromptMode>('classic');
   const [videoRatio, setVideoRatio] = useState('16:9');
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(10);
   const [videoProfileIds, setVideoProfileIds] = useState('1');
@@ -840,6 +847,7 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          promptMode: videoPromptMode,
           visualAssetJobIds: videoVisualAssetIds,
           sceneIds: videoSceneIds,
           sourceImagePaths: videoSourceImagePaths
@@ -932,6 +940,7 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
           runVisual: pipelineRunVisual,
           runVideo: pipelineRunVideo,
           runQuality: pipelineRunQuality,
+          videoPromptMode,
           profileIds: videoProfileIds,
           notes: pipelineNotes,
         }),
@@ -1610,6 +1619,20 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
         <section id="production-pipeline" className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 scroll-mt-6">
           <h2 className="text-lg font-semibold mb-4">自动产制流水线</h2>
           <div className="space-y-5">
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                视频提示词模式
+              </p>
+              <VideoPromptModeSelector
+                value={videoPromptMode}
+                onChange={setVideoPromptMode}
+                disabled={pipelineLoading || videoLoading}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                该选择同时用于自动产制流水线和下方的手动视频任务。
+              </p>
+            </div>
+
             <div className="grid gap-3 md:grid-cols-3">
               {pipelineLevelOptions.map((option) => (
                 <button
@@ -1960,6 +1983,17 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
           <h2 className="text-lg font-semibold mb-4">视频生成</h2>
           <div className="space-y-5">
             <div>
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                提示词生成流程
+              </p>
+              <VideoPromptModeSelector
+                value={videoPromptMode}
+                onChange={setVideoPromptMode}
+                disabled={videoLoading}
+              />
+            </div>
+
+            <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">基于视觉资产生成视频提示词</p>
               <div className="max-h-44 overflow-y-auto space-y-1">
                 {visualJobs.map((job) => (
@@ -2077,7 +2111,7 @@ export default function WorkflowWizard({ movie }: { movie: Movie }) {
                       <div className="min-w-0">
                         <p className="font-medium text-sm text-gray-900 dark:text-white">{job.title}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {formatStatus(job.status)} · {job.ratio} · {job.durationSeconds || '默认'} 秒 · {job.visualAssetJob?.title || job.scene?.heading || '全片'}
+                          {formatStatus(job.status)} · {getVideoPromptModeLabel(job.promptMode)} · {job.ratio} · {job.durationSeconds || '默认'} 秒 · {job.visualAssetJob?.title || job.scene?.heading || '全片'}
                         </p>
                       </div>
                       <div className="flex gap-2">

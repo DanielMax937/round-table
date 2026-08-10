@@ -286,6 +286,7 @@ model VideoGenerationJob {
   sceneId        String?
   visualAssetJobId String?
   title          String
+  promptMode     String   @default("classic") // "classic"|"higgsfield"|"hybrid"
   ratio          String   @default("16:9")
   durationSeconds Int?
   sourceImagePathsJson String @default("[]")

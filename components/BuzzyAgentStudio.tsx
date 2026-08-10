@@ -2,6 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import VideoPromptModeSelector from '@/components/VideoPromptModeSelector';
+import {
+  getVideoPromptModeLabel,
+  type VideoPromptMode,
+} from '@/lib/movie/video-prompt-mode-contract';
 
 type Role = 'user' | 'assistant' | 'system';
 
@@ -79,6 +84,7 @@ interface VideoGenerationJob {
   id: string;
   status: string;
   title: string;
+  promptMode?: string;
   ratio: string;
   durationSeconds?: number | null;
   prompt: string;
@@ -156,6 +162,7 @@ export default function BuzzyAgentStudio({ initialMovieId }: { initialMovieId?: 
   const [selectedProposalIndex, setSelectedProposalIndex] = useState(0);
   const [runImageTasks, setRunImageTasks] = useState(false);
   const [runVideoTasks, setRunVideoTasks] = useState(false);
+  const [videoPromptMode, setVideoPromptMode] = useState<VideoPromptMode>('classic');
   const [profileIds, setProfileIds] = useState('1');
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -457,6 +464,7 @@ export default function BuzzyAgentStudio({ initialMovieId }: { initialMovieId?: 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          promptMode: videoPromptMode,
           visualAssetJobIds,
           sceneIds,
           ratio,
@@ -739,6 +747,17 @@ export default function BuzzyAgentStudio({ initialMovieId }: { initialMovieId?: 
 
             <section className="space-y-3">
               <p className="text-sm font-medium text-neutral-300">Agent Controls</p>
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Video prompt mode
+                </p>
+                <VideoPromptModeSelector
+                  value={videoPromptMode}
+                  onChange={setVideoPromptMode}
+                  disabled={loading}
+                  variant="studio"
+                />
+              </div>
               <label className="flex items-center justify-between gap-3 rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm">
                 <span>自动执行图片生成</span>
                 <input
@@ -1162,7 +1181,7 @@ function VideoNode({
           <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
             <p className="text-sm font-medium text-neutral-100">{latestJob.title}</p>
             <p className="mt-1 text-xs text-neutral-500">
-              {latestJob.ratio} · {latestJob.durationSeconds || '-'}s
+              {getVideoPromptModeLabel(latestJob.promptMode)} · {latestJob.ratio} · {latestJob.durationSeconds || '-'}s
             </p>
             <p className="mt-3 line-clamp-6 text-xs leading-5 text-neutral-400">{latestJob.prompt}</p>
             {latestJob.outputDir && (

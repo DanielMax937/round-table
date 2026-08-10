@@ -5,7 +5,11 @@ import { spawn } from 'child_process';
 import { prisma } from '@/lib/prisma';
 import { chatCompletion } from '@/lib/llm/client';
 import { getVisualAssetImagePaths } from '@/lib/movie/asset-files';
-import { buildSeedancePromptMessages } from '@/lib/movie/seedance-prompt-compiler';
+import { buildVideoPromptMessages } from '@/lib/movie/video-prompt-modes';
+import {
+  normalizeVideoPromptMode,
+  type VideoPromptMode,
+} from '@/lib/movie/video-prompt-mode-contract';
 
 const DOUBAO_TASK_ROOT =
   process.env.DOUBAO_VIDEO_TASK_ROOT || '/Users/daniel/Desktop/gy/website-scraper';
@@ -15,6 +19,7 @@ const DOUBAO_INPUT_ROOT =
   process.env.DOUBAO_VIDEO_INPUT_ROOT || path.join(process.cwd(), 'outputs', 'doubao-video-inputs');
 
 export interface VideoGenerationRequest {
+  promptMode?: VideoPromptMode;
   visualAssetJobIds?: string[];
   sceneIds?: string[];
   sourceImagePaths?: string[];
@@ -66,6 +71,7 @@ interface MovieForVideo {
 
 export function normalizeVideoGenerationRequest(input: Partial<VideoGenerationRequest>): VideoGenerationRequest {
   return {
+    promptMode: normalizeVideoPromptMode(input.promptMode),
     visualAssetJobIds: normalizeList(input.visualAssetJobIds, []),
     sceneIds: normalizeList(input.sceneIds, []),
     sourceImagePaths: normalizeList(input.sourceImagePaths, []).map((item) => item.trim()).filter(Boolean),
@@ -132,6 +138,7 @@ export async function createVideoGenerationJobs(movieId: string, request: VideoG
         sceneId: spec.sceneId,
         visualAssetJobId: spec.visualAssetJobId,
         title: spec.title,
+        promptMode: normalizeVideoPromptMode(request.promptMode),
         ratio: request.ratio || '16:9',
         durationSeconds: request.durationSeconds,
         sourceImagePathsJson: JSON.stringify(spec.sourceImagePaths),
@@ -260,6 +267,7 @@ async function buildVideoSpecs(movie: MovieForVideo, request: VideoGenerationReq
         scene,
         character: visual.character || undefined,
         durationSeconds: request.durationSeconds,
+        promptMode: request.promptMode,
         ratio: request.ratio,
         sourceImagePaths,
         notes: request.notes,
@@ -279,6 +287,7 @@ async function buildVideoSpecs(movie: MovieForVideo, request: VideoGenerationReq
         visualResult: '',
         scene,
         durationSeconds: request.durationSeconds,
+        promptMode: request.promptMode,
         ratio: request.ratio,
         sourceImagePaths: request.sourceImagePaths || [],
         notes: request.notes,
@@ -299,6 +308,7 @@ async function generateVideoPromptWithLLM(
     scene?: MovieForVideo['scenes'][number] | MovieForVideo['visualAssetJobs'][number]['scene'] | null;
     character?: MovieForVideo['visualAssetJobs'][number]['character'];
     durationSeconds?: number;
+    promptMode?: VideoPromptMode;
     ratio?: string;
     sourceImagePaths?: string[];
     notes?: string;
@@ -319,7 +329,8 @@ async function generateVideoPromptWithLLM(
       ].filter(Boolean).join('\n')
     : '';
   const result = await chatCompletion(
-    buildSeedancePromptMessages({
+    buildVideoPromptMessages({
+      promptMode: context.promptMode,
       movieTitle: movie.title,
       storyContext: story,
       visualTitle: context.visualTitle,
