@@ -54,7 +54,9 @@ round-table.log
 /tmp/
 /movie/
 /awesome-gpt-image-2-API-and-Prompts/
+/third_party/
 output/
+/data/higgsfield/
 
 # Novel generation intermediate files
 novel*_raw.txt

@@ -36,6 +36,18 @@ Additional image prompt patterns were cross-checked against the local `awesome-g
 - Keep hand/object interactions simple, already-settled, or slow enough for the model to preserve anatomy.
 - For storyboard/grid references, never treat the grid as one image; convert selected panels into sequential shot sources or use the first relevant panel as the anchor.
 
+## Seedance 2.0 Skill OS Integration
+
+The full `github.com/Emily2040/seedance-2.0` repository is vendored under `third_party/seedance-2.0`. Runtime prompt generation loads selected upstream `SKILL.md` and `references/*.md` files through `lib/movie/seedance-skill-os.ts`, then `lib/movie/seedance-prompt-compiler.ts` combines that real Skill OS context with the current movie state.
+
+- Classify generation mode before drafting: `T2V` for text-only jobs, `I2V` for one source image, and `R2V` for multiple references.
+- Assign reference roles explicitly with exact Chinese tags such as `@图片1`; each reference gets a primary transfer role and a do-not-transfer boundary.
+- For requests longer than one reliable Seedance generation, compile only the current clip and mark it as the first sequence clip. Future beats stay out of the prompt.
+- Preserve the user-selected aspect ratio in prompt context instead of hard-coding `16:9`.
+- Keep final Seedance prompts as natural Chinese prose, not JSON/YAML, while the compiler can use structured planning internally.
+- Validate vendored upstream skills, references, schemas, examples, assets, and scripts with `npm run seedance:validate`.
+- Apply safety rewriting guidance before final prompt output: protected IP, celebrity likeness, private-person identity, brand/logo, song, or voice mimicry should be converted to original production-safe equivalents.
+
 ## Quality Implication
 
 The generated prompts should be judged by whether they are executable production instructions, not whether they sound cinematic. Good prompts reduce ambiguity, lock continuity, constrain motion, and make failure modes explicit.
